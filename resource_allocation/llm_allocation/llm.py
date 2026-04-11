@@ -6,7 +6,7 @@ import time
 
 class NGOTaskGenerator:
 
-    def __init__(self, model_name: str = "gemini-1.5-pro-latest"):
+    def __init__(self, model_name: str = "models/gemini-2.5-flash"):
         self.client = genai.Client(api_key=GEMINI_API_KEY)
         self.model_name = model_name
 

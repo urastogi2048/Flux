@@ -10,7 +10,7 @@ generator = NGOTaskGenerator()
 
 @app.get("/")
 def home():
-    return {"message": "NGO AI Task Generator API is running 🚀"}
+    return {"message": "NGO AI Task Generator API is running "}
 
 
 @app.post("/generate-task")
