@@ -4,15 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../authscreens/auth_wrapper.dart';
 
-/// Admin home / landing — layout matches product mock (navy + sky blue).
-class AdminLandingScreen extends ConsumerStatefulWidget {
-  const AdminLandingScreen({super.key});
+class VolunteerLanding extends ConsumerStatefulWidget {
+  const VolunteerLanding({super.key});
 
   @override
-  ConsumerState<AdminLandingScreen> createState() => _AdminLandingScreenState();
+  ConsumerState<VolunteerLanding> createState() => VolunteerLandingState();
 }
 
-class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
+class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   int _navIndex = 0;
 
   static const Color _navy = Color(0xFF002B9A);
@@ -44,9 +43,9 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
         indicatorColor: _sky,
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard, color: _navy),
-            label: 'DASHBOARD',
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home, color: _navy),
+            label: 'HOME',
           ),
           NavigationDestination(
             icon: Icon(Icons.task_alt_outlined),
@@ -59,9 +58,9 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             label: 'MAP',
           ),
           NavigationDestination(
-            icon: Icon(Icons.hub_outlined),
-            selectedIcon: Icon(Icons.hub, color: _navy),
-            label: 'ALLOCATION',
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person, color: _navy),
+            label: 'PROFILE',
           ),
         ],
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -73,10 +72,9 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(textTheme),
-            
               const SizedBox(height: 20),
               Text(
-                'Welcome back, Director.',
+                'Welcome back, volunteer.',
                 style: textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: _navy,
@@ -84,7 +82,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Mission oversight for NGO Smart Allocation project is active.',
+                'Your impact matters, let\'s make a difference today.',
                 style: textTheme.bodyMedium?.copyWith(color: _labelGrey),
               ),
               const SizedBox(height: 20),
@@ -92,68 +90,68 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                 children: [
                   Expanded(
                     child: _metricCard(
-                      label: 'ACTIVE TASKS',
-                      value: '24',
-                      footer: '📈 +4 from yesterday',
-                      footerColor: _completeGreen,
+                      label: 'MY TASKS',
+                      value: '2',
+                      footer: '🔔 1 new assignment',
+                      footerColor: _alertRed,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _metricCard(
-                      label: 'PENDING REPORTS',
-                      value: '07',
-                      footer: '❗ Reports for review',
-                      footerColor: _alertRed,
+                      label: 'COMPLETED',
+                      value: '18',
+                      footer: '✓ This month',
+                      footerColor: _completeGreen,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              _viewReportsCard(textTheme),
+              _myAssignedTasksCard(textTheme),
               const SizedBox(height: 12),
-              _unassignedTasksCard(textTheme),
+              _submitReportCard(textTheme),
               const SizedBox(height: 24),
-              _sectionRow('Recent Tasks', 'VIEW ALL'),
+              _sectionRow('Active Tasks', 'VIEW ALL'),
               const SizedBox(height: 10),
               _recentTaskCard(
-                icon: Icons.lock_outline,
+                icon: Icons.local_shipping_outlined,
                 title: 'Medical Supply Delivery - Sector 4',
-                status: 'COMPLETE',
-                statusBg: _completeGreen,
-                statusFg: Colors.white,
-                priority: 'PRIORITY: HIGH',
+                status: 'ASSIGNED',
+                statusBg: _sky,
+                statusFg: _navy,
+                priority: 'STARTS: Today, 10:00 AM',
               ),
               const SizedBox(height: 10),
               _recentTaskCard(
                 icon: Icons.local_shipping_outlined,
-                title: 'Logistics Hub Calibration',
+                title: 'Emergency Relief Kit Distribution',
                 status: 'IN PROGRESS',
-                statusBg: _sky,
-                statusFg: _navy,
-                priority: 'PRIORITY: MEDIUM',
+                statusBg: _completeGreen,
+                statusFg: Colors.white,
+                priority: 'DUE: Today, 5:00 PM',
               ),
               const SizedBox(height: 24),
-              _objectiveCard(textTheme),
+              _impactCard(textTheme),
               const SizedBox(height: 10),
               _statPill(
                 textTheme,
-                value: '4,200+',
-                caption: 'Lives affected',
+                value: '120+',
+                caption: 'Lives helped',
                 bg: _sky,
                 valueColor: _navy,
               ),
               const SizedBox(height: 10),
               _statPill(
                 textTheme,
-                value: '88%',
-                caption: 'Optimization score',
+                value: '92%',
+                caption: 'Efficiency rating',
                 bg: _sky,
                 valueColor: _navy,
               ),
               const SizedBox(height: 24),
               Text(
-                'Urgency Map',
+                'Nearby Tasks',
                 style: textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: _navy,
@@ -161,59 +159,59 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                'REAL-TIME ZONES',
+                'REAL-TIME OPPORTUNITIES',
                 style: textTheme.labelSmall?.copyWith(
                   color: _labelGrey,
                   letterSpacing: 0.8,
                 ),
               ),
               const SizedBox(height: 10),
-              _urgencyMap(),
+              _nearbyTasksMap(),
               const SizedBox(height: 24),
-              _allocationAuditCard(textTheme),
+              _performanceCard(textTheme),
               const SizedBox(height: 24),
               Text(
-                'Volunteers',
+                'Badges & Achievements',
                 style: textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: _navy,
                 ),
               ),
               const SizedBox(height: 12),
-              _volunteerRow(
-                initials: 'SM',
-                tint: const Color(0xFF7C4DFF),
-                name: 'Sarah Miller',
-                tags: const ['MEDICAL', 'TRUCKING'],
+              _badgeRow(
+                icon: Icons.flash_on,
+                iconColor: const Color(0xFFFFA726),
+                title: 'Fast Responder',
+                subtitle: 'Responded within 2 hours',
               ),
               const SizedBox(height: 10),
-              _volunteerRow(
-                initials: 'MT',
-                tint: const Color(0xFF00897B),
-                name: 'Marcus Thompson',
-                tags: const ['LOGISTICS', 'SUPPLY'],
+              _badgeRow(
+                icon: Icons.verified,
+                iconColor: _completeGreen,
+                title: 'Reliable Volunteer',
+                subtitle: '10+ tasks completed on time',
               ),
               const SizedBox(height: 24),
               Text(
-                'Recent Uploads',
+                'Recent Reports',
                 style: textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: _navy,
                 ),
               ),
               const SizedBox(height: 12),
-              _uploadRow(
-                icon: Icons.picture_as_pdf,
-                iconColor: _alertRed,
-                name: 'Aurora_impact_study.pdf',
-                meta: '2.4 MB • 2h ago',
-              ),
-              const SizedBox(height: 10),
               _uploadRow(
                 icon: Icons.image_outlined,
                 iconColor: _navy,
-                name: 'Field_Report_04.jpg',
-                meta: '1.2 MB • 3h ago',
+                name: 'Task_Report_Medical_Delivery.jpg',
+                meta: '2.1 MB • 2h ago',
+              ),
+              const SizedBox(height: 10),
+              _uploadRow(
+                icon: Icons.description_outlined,
+                iconColor: _completeGreen,
+                name: 'Relief_Distribution_Notes.txt',
+                meta: '0.3 MB • 5h ago',
               ),
             ],
           ),
@@ -237,7 +235,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             radius: 22,
             backgroundColor: _sky,
             child: Text(
-              'SC',
+              'JD',
               style: textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: _navy,
@@ -248,7 +246,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            'Sovereign Cobalt',
+            'John Doe',
             style: textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: _navy,
@@ -329,7 +327,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     );
   }
 
-  Widget _viewReportsCard(TextTheme textTheme) {
+  Widget _myAssignedTasksCard(TextTheme textTheme) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -343,7 +341,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             top: 0,
             right: 0,
             child: Icon(
-              Icons.grid_view_rounded,
+              Icons.assignment_outlined,
               color: Colors.white.withValues(alpha: 0.9),
               size: 28,
             ),
@@ -352,7 +350,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'View Reports',
+                'View Assignments',
                 style: textTheme.titleMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -360,7 +358,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Consolidated field data',
+                'Accept or view your assigned tasks',
                 style: textTheme.bodySmall?.copyWith(
                   color: Colors.white.withValues(alpha: 0.9),
                 ),
@@ -372,7 +370,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     );
   }
 
-  Widget _unassignedTasksCard(TextTheme textTheme) {
+  Widget _submitReportCard(TextTheme textTheme) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -386,10 +384,10 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.smartphone, color: _navy, size: 28),
+          Icon(Icons.camera_alt_outlined, color: _navy, size: 28),
           const SizedBox(height: 8),
           Text(
-            'Unassigned Tasks: 12',
+            'Submit Task Report',
             style: textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: _navy,
@@ -397,7 +395,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Optimal matches calculated based on volunteer proximity.',
+            'Upload images, notes & completion status for your tasks.',
             style: textTheme.bodySmall?.copyWith(color: _labelGrey),
           ),
           const SizedBox(height: 16),
@@ -413,7 +411,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Text('Run Smart Match ⚡'),
+              child: const Text('Submit Report 📤'),
             ),
           ),
         ],
@@ -531,7 +529,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     );
   }
 
-  Widget _objectiveCard(TextTheme textTheme) {
+  Widget _impactCard(TextTheme textTheme) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
@@ -546,7 +544,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             right: -8,
             bottom: -16,
             child: Icon(
-              Icons.military_tech_outlined,
+              Icons.favorite_outlined,
               size: 96,
               color: Colors.white.withValues(alpha: 0.08),
             ),
@@ -555,7 +553,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '100%',
+                '🌟',
                 style: textTheme.displaySmall?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -563,7 +561,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Objective met',
+                'You\'re making a real difference',
                 style: textTheme.bodyLarge?.copyWith(
                   color: Colors.white.withValues(alpha: 0.92),
                 ),
@@ -609,7 +607,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     );
   }
 
-  Widget _urgencyMap() {
+  Widget _nearbyTasksMap() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: SizedBox(
@@ -653,7 +651,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                       ],
                     ),
                     child: const Text(
-                      'CRITICAL ZONE',
+                      'NEAR YOU',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
@@ -666,7 +664,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                     width: 10,
                     height: 10,
                     decoration: const BoxDecoration(
-                      color: _alertRed,
+                      color: _completeGreen,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -679,7 +677,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     );
   }
 
-  Widget _allocationAuditCard(TextTheme textTheme) {
+  Widget _performanceCard(TextTheme textTheme) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -698,24 +696,24 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Allocation Audit',
+            'My Performance',
             style: textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: _navy,
             ),
           ),
           const Divider(height: 24),
-          _auditRow('Efficiency rate', '94.2%', highlight: false),
+          _performanceRow('Response time', '2.1 hrs', highlight: false),
           const SizedBox(height: 12),
-          _auditRow('Avg. proximity', '1.2km', highlight: false),
+          _performanceRow('Avg. distance', '1.8 km', highlight: false),
           const SizedBox(height: 12),
-          _auditRow('Conflicts', '0', highlight: true),
+          _performanceRow('On-time rate', '100%', highlight: true),
         ],
       ),
     );
   }
 
-  Widget _auditRow(String label, String value, {required bool highlight}) {
+  Widget _performanceRow(String label, String value, {required bool highlight}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -728,21 +726,21 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: highlight ? _alertRed : _navy,
+            color: highlight ? _completeGreen : _navy,
           ),
         ),
       ],
     );
   }
 
-  Widget _volunteerRow({
-    required String initials,
-    required Color tint,
-    required String name,
-    required List<String> tags,
+  Widget _badgeRow({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -756,16 +754,13 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: tint.withValues(alpha: 0.25),
-            child: Text(
-              initials,
-              style: TextStyle(
-                color: tint,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: Icon(icon, color: iconColor, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -773,46 +768,25 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name,
+                  title,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF111827),
+                    fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: tags
-                      .map(
-                        (t) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _sky,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            t,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: _navy,
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _labelGrey,
+                  ),
                 ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_vert, color: _labelGrey),
-          ),
+          Icon(Icons.star, color: iconColor, size: 20),
         ],
       ),
     );
@@ -870,7 +844,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.download_outlined, color: _navy),
+            icon: const Icon(Icons.visibility_outlined, color: _navy),
           ),
         ],
       ),
