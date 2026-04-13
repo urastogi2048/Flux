@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flux_app/screens/admin_landing/admin_landing.dart';
+import 'package:flux_app/screens/volunteer/volunteerlanding.dart';
 import '../../providers/auth_provider.dart';
 import '../dashboards/admin_dashboard.dart';
 import '../dashboards/volunteer_dashboard.dart';
@@ -23,9 +25,9 @@ class AuthWrapper extends ConsumerWidget {
         return userRoleAsync.when(
           data: (isAdmin) {
             if (isAdmin == true) {
-              return const AdminDashboard();
+              return const AdminLandingScreen();
             } else if (isAdmin == false) {
-              return const VolunteerDashboard();
+              return const VolunteerLanding();
             } else {
               return SignUpAs();
             }
