@@ -7,3 +7,6 @@ ven/
 __pycache__/
 .vscode/
 *.pyc
+
+backend/.env
+backend/backenv/
