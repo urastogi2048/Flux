@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic_models import UploadRequest,MetadataRequest
 from s3 import generate_upload_url,file_exists
 from database import engine,SessionLocal
@@ -8,6 +9,15 @@ database_models.Base.metadata.create_all(bind=engine)
 
 app=FastAPI()
 
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 ALLOWED_TYPES=["image/jpeg", "image/png"]
 
 @app.post("/get_upload_url")
