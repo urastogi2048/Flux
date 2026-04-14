@@ -2,9 +2,6 @@ import boto3
 import uuid
 from config import AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION, S3_BUCKET
 
-print("AWS_ACCESS_KEY:  ",AWS_ACCESS_KEY)
-print("AWS_SECRET_KEY:  ",AWS_SECRET_KEY)
-
 s3 = boto3.client(
     "s3",
     region_name=AWS_REGION,
@@ -31,6 +28,15 @@ def generate_upload_url(user_id: str, ngo_id: str, file_type: str):
     )
     file_url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{key}"
     return upload_url, file_url, key
+
+
+def file_exists(key:str)->bool:
+    try:
+        s3.head_object(Bucket=S3_BUCKET, Key=key)
+        return True
+    except Exception:
+        return False
+
 
 """await fetch(upload_url, {
     method: 'PUT',
