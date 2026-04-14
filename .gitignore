@@ -1,10 +1,12 @@
 .env
 myenv/
-myenv/
 venv/
 env/
 ven/
 __pycache__/
 .vscode/
 *.pyc
+
+backend/.env
+backend/backenv/
 flux_app/pubspec.lock
