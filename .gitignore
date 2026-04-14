@@ -7,3 +7,4 @@ ven/
 __pycache__/
 .vscode/
 *.pyc
+flux_app/pubspec.lock

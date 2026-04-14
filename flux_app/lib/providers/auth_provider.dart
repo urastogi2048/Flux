@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flux_app/models/usermodel.dart';
 import 'package:flux_app/models/volunteermodel.dart';
 import '../services/authservice.dart';
+
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
 });
@@ -28,3 +30,14 @@ final currentUserUidProvider = Provider<String?>((ref) {
   final authState = ref.watch(authStateProvider);
   return authState.whenData((user) => user?.uid).value;
 });
+
+// Firestore Provider to fetch all data from firestore
+final userProfileProvider =
+    FutureProvider.family<Map<String, dynamic>?, String>((ref, uid) async {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      return doc.data();
+    });
