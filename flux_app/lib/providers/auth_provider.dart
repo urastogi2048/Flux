@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flux_app/models/usermodel.dart';
+import 'package:flux_app/models/volunteermodel.dart';
 import '../services/authservice.dart';
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
@@ -13,4 +15,16 @@ final authStateProvider = StreamProvider<User?>((ref) {
 final userRoleProvider = FutureProvider.family<bool?, String>((ref, uid) async {
   final authService = ref.read(authServiceProvider);
   return authService.isUserAdmin(uid);
+});
+final userDetailsProvider=FutureProvider.family<UserModel? , String>((ref, uid) async{
+  final authService=ref.read(authServiceProvider);
+  return authService.fetchUserDetails(uid);
+} );
+final volunteerDetailsProvider=FutureProvider.family<VolunteerModel?, String> ((ref,uid) async{
+  final authService=ref.read(authServiceProvider);
+  return authService.fetchVolunteerDetails(uid);
+});
+final currentUserUidProvider = Provider<String?>((ref) {
+  final authState = ref.watch(authStateProvider);
+  return authState.whenData((user) => user?.uid).value;
 });
