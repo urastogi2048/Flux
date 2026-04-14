@@ -62,6 +62,7 @@ class AuthService {
     try {
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
+        'ngoid':user.ngoid,
         'email': user.email,
         'name': user.name,
         'role': 'volunteer',
@@ -91,6 +92,7 @@ class AuthService {
     try {
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
+        'ngoid':user.ngoid,
         'email': user.email,
         'name': user.name,
         'role': 'admin',
@@ -130,8 +132,9 @@ class AuthService {
       if(doc.exists){
         final data=doc.data();
         return UserModel(
-          uid: data?['uid'] ?? '',
-          name: data?['name'] ?? '',
+        uid: data?['uid'] ?? '',
+        ngoid: List<String>.from(data?['ngoid'] ?? []),
+        name: data?['name'] ?? '',
         email: data?['email'] ?? '',
         role: data?['role'] ?? 'volunteer',
         phone: data?['phone'],
@@ -171,4 +174,71 @@ class AuthService {
       return null;
     }
   } 
+  Future<String?> createNGO({
+    required String adminuid,
+    required String ngoname,
+    required String ngotype,
+    required String description,
+    required List<GeoPoint> servicelocations,
+    String? contactInfo,
+  }) async {
+    try {
+      final ngoRef = _firestore.collection('ngos').doc();
+      final ngoid = ngoRef.id;
+      await ngoRef.set({
+        'ngoid': ngoid,
+        'name': ngoname,
+        'ngotype': ngotype,
+        'description': description,
+        'servicelocations': servicelocations,
+        'adminid': adminuid,
+        'totalTasksCreated': 0,
+        'activeTasks': 0,
+        'managedTaskIds': [],
+        'volunteersAssigned': [],
+        'contactInfo': contactInfo ?? '',
+        'isActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      await _firestore.collection('users').doc(adminuid).update({
+        'ngoid': FieldValue.arrayUnion([ngoid])
+      });
+      return ngoid;
+    } catch (e) {
+      print("Error creating NGO: $e");
+      return null;
+    }
+  }
+
+  Future<bool> assignVolunteerToNGO({
+    required String volunteerUid,
+    required String ngoid,
+  }) async {
+    try {
+      // Add volunteer to NGO's volunteersAssigned list
+      await _firestore.collection('ngos').doc(ngoid).update({
+        'volunteersAssigned': FieldValue.arrayUnion([volunteerUid])
+      });
+
+      // Add NGO to volunteer's ngoid list
+      await _firestore.collection('users').doc(volunteerUid).update({
+        'ngoid': FieldValue.arrayUnion([ngoid])
+      });
+
+      return true;
+    } catch (e) {
+      print("Error assigning volunteer to NGO: $e");
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchNGODetails(String ngoid) async {
+    try {
+      final doc = await _firestore.collection('ngos').doc(ngoid).get();
+      return doc.data();
+    } catch (e) {
+      print("Error fetching NGO details: $e");
+      return null;
+    }
+  }
 }

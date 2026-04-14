@@ -1,6 +1,5 @@
 .env
 myenv/
-myenv/
 venv/
 env/
 ven/
@@ -10,3 +9,4 @@ __pycache__/
 
 backend/.env
 backend/backenv/
+flux_app/pubspec.lock
