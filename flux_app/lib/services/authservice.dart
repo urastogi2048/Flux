@@ -124,4 +124,51 @@ class AuthService {
       return null;
     }
   }
+  Future<UserModel?> fetchUserDetails(String uid) async {
+    try{
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if(doc.exists){
+        final data=doc.data();
+        return UserModel(
+          uid: data?['uid'] ?? '',
+          name: data?['name'] ?? '',
+        email: data?['email'] ?? '',
+        role: data?['role'] ?? 'volunteer',
+        phone: data?['phone'],
+        profileImage: data?['profileImage'],
+        createdAt: (data?['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        isActive: data?['isActive'] ?? true,
+        );
+      }
+      return null;
+    }
+    catch(e){
+      print("Error fetching user details: $e");
+      return null;
+    }
+  }
+  Future<VolunteerModel?> fetchVolunteerDetails(String uid) async {
+    try{
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if(doc.exists) {
+        final data = doc.data();
+        return VolunteerModel(
+          uid: uid,
+          skills: List<String>.from(data?['skills'] ?? []),
+          availability: List<String>.from(data?['availability'] ?? []),
+          location: data?['location'] ?? const GeoPoint(0, 0),
+          tasksCompleted: data?['tasksCompleted'] ?? 0,
+          tasksAccepted: data?['tasksAccepted'] ?? 0,
+          tasksRejected: data?['tasksRejected'] ?? 0,
+          rating: data?['rating'] ?? 0.0,
+          assignedTaskIds: List<String>.from(data?['assignedTaskIds'] ?? []),
+        );
+      }
+      return null;
+    }
+    catch(e) {
+      print("Error fetching volunteer details: $e");
+      return null;
+    }
+  } 
 }

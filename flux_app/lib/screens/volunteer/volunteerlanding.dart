@@ -30,11 +30,17 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
       (route) => false,
     );
   }
+  
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
+    final String uid = ref.watch(currentUserUidProvider) ?? '';
+    final profileuser =  ref.watch(userDetailsProvider(uid));
+    String name = profileuser.maybeWhen(
+      data: (user) => user?.name ?? '',
+      orElse: () => '',
+    );
     return Scaffold(
       backgroundColor: _pageBg,
       bottomNavigationBar: NavigationBar(
@@ -47,6 +53,7 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
             selectedIcon: Icon(Icons.home, color: _navy),
             label: 'HOME',
           ),
+
           NavigationDestination(
             icon: Icon(Icons.task_alt_outlined),
             selectedIcon: Icon(Icons.task_alt, color: _navy),
@@ -65,177 +72,32 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
         ],
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(textTheme),
-              const SizedBox(height: 20),
-              Text(
-                'Welcome back, volunteer.',
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: _navy,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Your impact matters, let\'s make a difference today.',
-                style: textTheme.bodyMedium?.copyWith(color: _labelGrey),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _metricCard(
-                      label: 'MY TASKS',
-                      value: '2',
-                      footer: '🔔 1 new assignment',
-                      footerColor: _alertRed,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _metricCard(
-                      label: 'COMPLETED',
-                      value: '18',
-                      footer: '✓ This month',
-                      footerColor: _completeGreen,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _myAssignedTasksCard(textTheme),
-              const SizedBox(height: 12),
-              _submitReportCard(textTheme),
-              const SizedBox(height: 24),
-              _sectionRow('Active Tasks', 'VIEW ALL'),
-              const SizedBox(height: 10),
-              _recentTaskCard(
-                icon: Icons.local_shipping_outlined,
-                title: 'Medical Supply Delivery - Sector 4',
-                status: 'ASSIGNED',
-                statusBg: _sky,
-                statusFg: _navy,
-                priority: 'STARTS: Today, 10:00 AM',
-              ),
-              const SizedBox(height: 10),
-              _recentTaskCard(
-                icon: Icons.local_shipping_outlined,
-                title: 'Emergency Relief Kit Distribution',
-                status: 'IN PROGRESS',
-                statusBg: _completeGreen,
-                statusFg: Colors.white,
-                priority: 'DUE: Today, 5:00 PM',
-              ),
-              const SizedBox(height: 24),
-              _impactCard(textTheme),
-              const SizedBox(height: 10),
-              _statPill(
-                textTheme,
-                value: '120+',
-                caption: 'Lives helped',
-                bg: _sky,
-                valueColor: _navy,
-              ),
-              const SizedBox(height: 10),
-              _statPill(
-                textTheme,
-                value: '92%',
-                caption: 'Efficiency rating',
-                bg: _sky,
-                valueColor: _navy,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Nearby Tasks',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: _navy,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'REAL-TIME OPPORTUNITIES',
-                style: textTheme.labelSmall?.copyWith(
-                  color: _labelGrey,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _nearbyTasksMap(),
-              const SizedBox(height: 24),
-              _performanceCard(textTheme),
-              const SizedBox(height: 24),
-              Text(
-                'Badges & Achievements',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: _navy,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _badgeRow(
-                icon: Icons.flash_on,
-                iconColor: const Color(0xFFFFA726),
-                title: 'Fast Responder',
-                subtitle: 'Responded within 2 hours',
-              ),
-              const SizedBox(height: 10),
-              _badgeRow(
-                icon: Icons.verified,
-                iconColor: _completeGreen,
-                title: 'Reliable Volunteer',
-                subtitle: '10+ tasks completed on time',
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Recent Reports',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: _navy,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _uploadRow(
-                icon: Icons.image_outlined,
-                iconColor: _navy,
-                name: 'Task_Report_Medical_Delivery.jpg',
-                meta: '2.1 MB • 2h ago',
-              ),
-              const SizedBox(height: 10),
-              _uploadRow(
-                icon: Icons.description_outlined,
-                iconColor: _completeGreen,
-                name: 'Relief_Distribution_Notes.txt',
-                meta: '0.3 MB • 5h ago',
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: _buildNavigationBody(textTheme, name),
     );
   }
 
-  Widget _buildHeader(TextTheme textTheme) {
+  Widget _buildHeader(TextTheme textTheme, String name) {
     return Row(
       children: [
-        PopupMenuButton<String>(
-          offset: const Offset(0, 48),
-          onSelected: (value) {
-            if (value == 'signout') _signOut();
+        InkWell(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              builder: (context) => DraggableScrollableSheet(
+                expand: false,
+                initialChildSize: 0.75,
+                minChildSize: 0.5,
+                maxChildSize: 0.95,
+                builder: (context, scrollController) => _buildProfileContent(),
+              ),
+            );
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'signout', child: Text('Sign out')),
-          ],
           child: CircleAvatar(
             radius: 22,
             backgroundColor: _sky,
             child: Text(
-              'JD',
+              name.substring(0, 1),
               style: textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: _navy,
@@ -246,7 +108,7 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            'John Doe',
+            name,
             style: textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: _navy,
@@ -274,6 +136,414 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildNavigationBody(TextTheme textTheme, String name) {
+    switch (_navIndex) {
+      case 0:
+        return _buildHomeContent(textTheme, name);
+      case 1:
+        return _buildTasksContent();
+      case 2:
+        return _buildMapContent();
+      case 3:
+        return _buildProfileContent();
+      default:
+        return _buildHomeContent(textTheme, name);
+    }
+  }
+
+  Widget _buildHomeContent(TextTheme textTheme, String name) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(textTheme, name),
+            const SizedBox(height: 20),
+            Text(
+              'Welcome back, volunteer.',
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _navy,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Your impact matters, let\'s make a difference today.',
+              style: textTheme.bodyMedium?.copyWith(color: _labelGrey),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _metricCard(
+                    label: 'MY TASKS',
+                    value: '2',
+                    footer: '🔔 1 new assignment',
+                    footerColor: _alertRed,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _metricCard(
+                    label: 'COMPLETED',
+                    value: '18',
+                    footer: '✓ This month',
+                    footerColor: _completeGreen,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _myAssignedTasksCard(textTheme),
+            const SizedBox(height: 12),
+            _submitReportCard(textTheme),
+            const SizedBox(height: 24),
+            _sectionRow('Active Tasks', 'VIEW ALL'),
+            const SizedBox(height: 10),
+            _recentTaskCard(
+              icon: Icons.local_shipping_outlined,
+              title: 'Medical Supply Delivery - Sector 4',
+              status: 'ASSIGNED',
+              statusBg: _sky,
+              statusFg: _navy,
+              priority: 'STARTS: Today, 10:00 AM',
+            ),
+            const SizedBox(height: 10),
+            _recentTaskCard(
+              icon: Icons.local_shipping_outlined,
+              title: 'Emergency Relief Kit Distribution',
+              status: 'IN PROGRESS',
+              statusBg: _completeGreen,
+              statusFg: Colors.white,
+              priority: 'DUE: Today, 5:00 PM',
+            ),
+            const SizedBox(height: 24),
+            _impactCard(textTheme),
+            const SizedBox(height: 10),
+            _statPill(
+              textTheme,
+              value: '120+',
+              caption: 'Lives helped',
+              bg: _sky,
+              valueColor: _navy,
+            ),
+            const SizedBox(height: 10),
+            _statPill(
+              textTheme,
+              value: '92%',
+              caption: 'Efficiency rating',
+              bg: _sky,
+              valueColor: _navy,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Nearby Tasks',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _navy,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'REAL-TIME OPPORTUNITIES',
+              style: textTheme.labelSmall?.copyWith(
+                color: _labelGrey,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _nearbyTasksMap(),
+            const SizedBox(height: 24),
+            _performanceCard(textTheme),
+            const SizedBox(height: 24),
+            Text(
+              'Badges & Achievements',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _navy,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _badgeRow(
+              icon: Icons.flash_on,
+              iconColor: const Color(0xFFFFA726),
+              title: 'Fast Responder',
+              subtitle: 'Responded within 2 hours',
+            ),
+            const SizedBox(height: 10),
+            _badgeRow(
+              icon: Icons.verified,
+              iconColor: _completeGreen,
+              title: 'Reliable Volunteer',
+              subtitle: '10+ tasks completed on time',
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Recent Reports',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _navy,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _uploadRow(
+              icon: Icons.image_outlined,
+              iconColor: _navy,
+              name: 'Task_Report_Medical_Delivery.jpg',
+              meta: '2.1 MB • 2h ago',
+            ),
+            const SizedBox(height: 10),
+            _uploadRow(
+              icon: Icons.description_outlined,
+              iconColor: _completeGreen,
+              name: 'Relief_Distribution_Notes.txt',
+              meta: '0.3 MB • 5h ago',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTasksContent() {
+    return SafeArea(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.task_alt, size: 80, color: _navy),
+            const SizedBox(height: 20),
+            Text(
+              'Tasks Screen',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Coming soon',
+              style: TextStyle(fontSize: 16, color: _labelGrey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapContent() {
+    return SafeArea(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.map, size: 80, color: _navy),
+            const SizedBox(height: 20),
+            Text(
+              'Map Screen',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Coming soon',
+              style: TextStyle(fontSize: 16, color: _labelGrey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileContent() {
+    final String uid = ref.watch(currentUserUidProvider) ?? '';
+    final userDetails = ref.watch(userDetailsProvider(uid));
+    final volunteerDetails = ref.watch(volunteerDetailsProvider(uid));
+
+    return SafeArea(
+      child: userDetails.when(
+        loading: () => Center(
+          child: CircularProgressIndicator(color: _navy),
+        ),
+        data: (user) {
+          if (user == null) {
+            return Center(
+              child: Text('No user found'),
+            );
+          }
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: _sky,
+                    child: Text(
+                      user.name.substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: _navy,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        user.name,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: _navy,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user.role.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _labelGrey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30),
+                _profileDetailCard('Email', user.email),
+                const SizedBox(height: 12),
+                _profileDetailCard('Phone', user.phone ?? 'Not provided'),
+                const SizedBox(height: 12),
+                _profileDetailCard('Member Since', user.createdAt.toString().split(' ')[0]),
+                const SizedBox(height: 12),
+                _profileDetailCard('Status', user.isActive ? 'Active' : 'Inactive'),
+                const SizedBox(height: 30),
+                volunteerDetails.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  data: (volunteer) {
+                    if (volunteer == null) {
+                      return SizedBox.shrink();
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Volunteer Statistics',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: _navy,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _statBox('Completed', volunteer.tasksCompleted.toString()),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _statBox('Accepted', volunteer.tasksAccepted.toString()),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _statBox('Rating', volunteer.rating.toStringAsFixed(1)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                  error: (err, _) => Text('Error: $err'),
+                ),
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _signOut,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _alertRed,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Sign Out'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+        error: (err, _) => Center(
+          child: Text('Error: $err'),
+        ),
+      ),
+    );
+  }
+
+  Widget _profileDetailCard(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _sky, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: _labelGrey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: _navy,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statBox(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _sky,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: _navy,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: _labelGrey,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
