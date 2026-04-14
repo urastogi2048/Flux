@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,7 +36,13 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
+        final String uid = ref.watch(currentUserUidProvider) ?? '';
+        final profileuser =  ref.watch(userDetailsProvider(uid));
+    String name = profileuser.maybeWhen(
+      data: (user) => user?.name ?? '',
+      orElse: () => '',
+    );
+    
     return Scaffold(
       backgroundColor: _pageBg,
       bottomNavigationBar: NavigationBar(
@@ -66,178 +73,259 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
         ],
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(textTheme),
-            
-              const SizedBox(height: 20),
-              Text(
-                'Welcome back, Director.',
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: _navy,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Mission oversight for NGO Smart Allocation project is active.',
-                style: textTheme.bodyMedium?.copyWith(color: _labelGrey),
-              ),
-              const SizedBox(height: 20),
-              Row(
+      body: _buildNavigationBody(textTheme,name),
+    );
+  }
+
+    Widget _buildNavigationBody(TextTheme textTheme, String name) {
+    switch (_navIndex) {
+      case 0:
+        return _buildHomeContent(textTheme, name);
+      case 1:
+        return _buildTasksContent();
+      case 2:
+        return _buildMapContent();
+      case 3:
+        return _allocationAuditCard(textTheme);
+      default:
+        return _buildHomeContent(textTheme, name);
+    }
+  }
+
+  Widget _buildHomeContent(TextTheme textTheme , String name){
+    final user = FirebaseAuth.instance.currentUser;
+    final userDataAsync = ref.watch(userProfileProvider(user!.uid));
+
+    return SafeArea(
+        child: userDataAsync.when(
+          data: (data) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: _metricCard(
-                      label: 'ACTIVE TASKS',
-                      value: '24',
-                      footer: '📈 +4 from yesterday',
-                      footerColor: _completeGreen,
+                  _buildHeader(textTheme, data),
+
+                  const SizedBox(height: 20),
+                  Text(
+                    "Welcome back, ${data?['name'] ?? 'Admin'}",
+                    style: textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: _navy,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _metricCard(
-                      label: 'PENDING REPORTS',
-                      value: '07',
-                      footer: '❗ Reports for review',
-                      footerColor: _alertRed,
+                  const SizedBox(height: 6),
+                  Text(
+                    'Mission oversight for NGO Smart Allocation project is active.',
+                    style: textTheme.bodyMedium?.copyWith(color: _labelGrey),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _metricCard(
+                          label: 'ACTIVE TASKS',
+                          value: '24',
+                          footer: '📈 +4 from yesterday',
+                          footerColor: _completeGreen,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _metricCard(
+                          label: 'PENDING REPORTS',
+                          value: '07',
+                          footer: '❗ Reports for review',
+                          footerColor: _alertRed,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _viewReportsCard(textTheme),
+                  const SizedBox(height: 12),
+                  _unassignedTasksCard(textTheme),
+                  const SizedBox(height: 24),
+                  _sectionRow('Recent Tasks', 'VIEW ALL'),
+                  const SizedBox(height: 10),
+                  _recentTaskCard(
+                    icon: Icons.lock_outline,
+                    title: 'Medical Supply Delivery - Sector 4',
+                    status: 'COMPLETE',
+                    statusBg: _completeGreen,
+                    statusFg: Colors.white,
+                    priority: 'PRIORITY: HIGH',
+                  ),
+                  const SizedBox(height: 10),
+                  _recentTaskCard(
+                    icon: Icons.local_shipping_outlined,
+                    title: 'Logistics Hub Calibration',
+                    status: 'IN PROGRESS',
+                    statusBg: _sky,
+                    statusFg: _navy,
+                    priority: 'PRIORITY: MEDIUM',
+                  ),
+                  const SizedBox(height: 24),
+                  _objectiveCard(textTheme),
+                  const SizedBox(height: 10),
+                  _statPill(
+                    textTheme,
+                    value: '4,200+',
+                    caption: 'Lives affected',
+                    bg: _sky,
+                    valueColor: _navy,
+                  ),
+                  const SizedBox(height: 10),
+                  _statPill(
+                    textTheme,
+                    value: '88%',
+                    caption: 'Optimization score',
+                    bg: _sky,
+                    valueColor: _navy,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Urgency Map',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: _navy,
                     ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'REAL-TIME ZONES',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: _labelGrey,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _urgencyMap(),
+                  const SizedBox(height: 24),
+                  _allocationAuditCard(textTheme),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Volunteers',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: _navy,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _volunteerRow(
+                    initials: 'SM',
+                    tint: const Color(0xFF7C4DFF),
+                    name: 'Sarah Miller',
+                    tags: const ['MEDICAL', 'TRUCKING'],
+                  ),
+                  const SizedBox(height: 10),
+                  _volunteerRow(
+                    initials: 'MT',
+                    tint: const Color(0xFF00897B),
+                    name: 'Marcus Thompson',
+                    tags: const ['LOGISTICS', 'SUPPLY'],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Recent Uploads',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: _navy,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _uploadRow(
+                    icon: Icons.picture_as_pdf,
+                    iconColor: _alertRed,
+                    name: 'Aurora_impact_study.pdf',
+                    meta: '2.4 MB • 2h ago',
+                  ),
+                  const SizedBox(height: 10),
+                  _uploadRow(
+                    icon: Icons.image_outlined,
+                    iconColor: _navy,
+                    name: 'Field_Report_04.jpg',
+                    meta: '1.2 MB • 3h ago',
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _viewReportsCard(textTheme),
-              const SizedBox(height: 12),
-              _unassignedTasksCard(textTheme),
-              const SizedBox(height: 24),
-              _sectionRow('Recent Tasks', 'VIEW ALL'),
-              const SizedBox(height: 10),
-              _recentTaskCard(
-                icon: Icons.lock_outline,
-                title: 'Medical Supply Delivery - Sector 4',
-                status: 'COMPLETE',
-                statusBg: _completeGreen,
-                statusFg: Colors.white,
-                priority: 'PRIORITY: HIGH',
-              ),
-              const SizedBox(height: 10),
-              _recentTaskCard(
-                icon: Icons.local_shipping_outlined,
-                title: 'Logistics Hub Calibration',
-                status: 'IN PROGRESS',
-                statusBg: _sky,
-                statusFg: _navy,
-                priority: 'PRIORITY: MEDIUM',
-              ),
-              const SizedBox(height: 24),
-              _objectiveCard(textTheme),
-              const SizedBox(height: 10),
-              _statPill(
-                textTheme,
-                value: '4,200+',
-                caption: 'Lives affected',
-                bg: _sky,
-                valueColor: _navy,
-              ),
-              const SizedBox(height: 10),
-              _statPill(
-                textTheme,
-                value: '88%',
-                caption: 'Optimization score',
-                bg: _sky,
-                valueColor: _navy,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Urgency Map',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: _navy,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'REAL-TIME ZONES',
-                style: textTheme.labelSmall?.copyWith(
-                  color: _labelGrey,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _urgencyMap(),
-              const SizedBox(height: 24),
-              _allocationAuditCard(textTheme),
-              const SizedBox(height: 24),
-              Text(
-                'Volunteers',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: _navy,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _volunteerRow(
-                initials: 'SM',
-                tint: const Color(0xFF7C4DFF),
-                name: 'Sarah Miller',
-                tags: const ['MEDICAL', 'TRUCKING'],
-              ),
-              const SizedBox(height: 10),
-              _volunteerRow(
-                initials: 'MT',
-                tint: const Color(0xFF00897B),
-                name: 'Marcus Thompson',
-                tags: const ['LOGISTICS', 'SUPPLY'],
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Recent Uploads',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: _navy,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _uploadRow(
-                icon: Icons.picture_as_pdf,
-                iconColor: _alertRed,
-                name: 'Aurora_impact_study.pdf',
-                meta: '2.4 MB • 2h ago',
-              ),
-              const SizedBox(height: 10),
-              _uploadRow(
-                icon: Icons.image_outlined,
-                iconColor: _navy,
-                name: 'Field_Report_04.jpg',
-                meta: '1.2 MB • 3h ago',
-              ),
-            ],
-          ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) =>
+              Center(child: Text('Error loading user data: $error')),
+        ),
+      );
+  }
+
+    Widget _buildTasksContent() {
+    return SafeArea(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.task_alt, size: 80, color: _navy),
+            const SizedBox(height: 20),
+            Text(
+              'Tasks Screen',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Coming soon',
+              style: TextStyle(fontSize: 16, color: _labelGrey),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(TextTheme textTheme) {
+    Widget _buildMapContent() {
+    return SafeArea(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.map, size: 80, color: _navy),
+            const SizedBox(height: 20),
+            Text(
+              'Map Screen',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Coming soon',
+              style: TextStyle(fontSize: 16, color: _labelGrey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(TextTheme textTheme, Map<String, dynamic>? data) {
     return Row(
       children: [
-        PopupMenuButton<String>(
-          offset: const Offset(0, 48),
-          onSelected: (value) {
-            if (value == 'signout') _signOut();
+        InkWell(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              builder: (context) => DraggableScrollableSheet(
+                expand: false,
+                initialChildSize: 0.75,
+                minChildSize: 0.5,
+                maxChildSize: 0.95,
+                builder: (context, scrollController) => _buildProfileContent(),
+              ),
+            );
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'signout', child: Text('Sign out')),
-          ],
           child: CircleAvatar(
             radius: 22,
             backgroundColor: _sky,
             child: Text(
-              'SC',
+              "${(data?['name'] ?? "Admin")[0].toUpperCase()}",
               style: textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: _navy,
@@ -248,10 +336,11 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            'Sovereign Cobalt',
-            style: textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: _navy,
+            data?['ngoname'] ?? 'NGO',
+            style: textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              color: Colors.black,
             ),
           ),
         ),
@@ -320,10 +409,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            footer,
-            style: TextStyle(fontSize: 12, color: footerColor),
-          ),
+          Text(footer, style: TextStyle(fontSize: 12, color: footerColor)),
         ],
       ),
     );
@@ -378,9 +464,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
       decoration: BoxDecoration(
         color: _sky,
         borderRadius: BorderRadius.circular(14),
-        border: const Border(
-          left: BorderSide(color: _navy, width: 5),
-        ),
+        border: const Border(left: BorderSide(color: _navy, width: 5)),
       ),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
@@ -680,37 +764,39 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
   }
 
   Widget _allocationAuditCard(TextTheme textTheme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Allocation Audit',
-            style: textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: _navy,
+    return SafeArea(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-          ),
-          const Divider(height: 24),
-          _auditRow('Efficiency rate', '94.2%', highlight: false),
-          const SizedBox(height: 12),
-          _auditRow('Avg. proximity', '1.2km', highlight: false),
-          const SizedBox(height: 12),
-          _auditRow('Conflicts', '0', highlight: true),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Allocation Audit',
+              style: textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _navy,
+              ),
+            ),
+            const Divider(height: 24),
+            _auditRow('Efficiency rate', '94.2%', highlight: false),
+            const SizedBox(height: 12),
+            _auditRow('Avg. proximity', '1.2km', highlight: false),
+            const SizedBox(height: 12),
+            _auditRow('Conflicts', '0', highlight: true),
+          ],
+        ),
       ),
     );
   }
@@ -719,10 +805,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: _labelGrey, fontSize: 14),
-        ),
+        Text(label, style: const TextStyle(color: _labelGrey, fontSize: 14)),
         Text(
           value,
           style: TextStyle(
@@ -734,6 +817,131 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
       ],
     );
   }
+
+  Widget _buildProfileContent() {
+    final String uid = ref.watch(currentUserUidProvider) ?? '';
+    final userDetails = ref.watch(userDetailsProvider(uid));
+    final volunteerDetails = ref.watch(volunteerDetailsProvider(uid));
+
+    return SafeArea(
+      child: userDetails.when(
+        loading: () => Center(child: CircularProgressIndicator(color: _navy)),
+        data: (user) {
+          if (user == null) {
+            return Center(child: Text('No user found'));
+          }
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: _sky,
+                    child: Text(
+                      user.name.substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: _navy,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        user.name,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: _navy,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user.role.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _labelGrey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30),
+                _profileDetailCard('Email', user.email),
+                const SizedBox(height: 12),
+                _profileDetailCard('Phone', user.phone ?? 'Not provided'),
+                const SizedBox(height: 12),
+                _profileDetailCard(
+                  'Member Since',
+                  user.createdAt.toString().split(' ')[0],
+                ),
+                const SizedBox(height: 12),
+                _profileDetailCard(
+                  'Status',
+                  user.isActive ? 'Active' : 'Inactive',
+                ),
+                
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _signOut,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _alertRed,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Sign Out'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+        error: (err, _) => Center(child: Text('Error: $err')),
+      ),
+    );
+  }
+
+  Widget _profileDetailCard(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _sky, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: _labelGrey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: _navy,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _volunteerRow({
     required String initials,
@@ -891,10 +1099,7 @@ class _TopoLinesPainter extends CustomPainter {
       final y = size.height * (0.15 + i * 0.12);
       path.moveTo(0, y);
       for (var x = 0.0; x <= size.width; x += 24) {
-        path.lineTo(
-          x,
-          y + 6 * (i.isEven ? 1 : -1) * (0.5 + (x % 48) / 48),
-        );
+        path.lineTo(x, y + 6 * (i.isEven ? 1 : -1) * (0.5 + (x % 48) / 48));
       }
       canvas.drawPath(path, paint);
     }
