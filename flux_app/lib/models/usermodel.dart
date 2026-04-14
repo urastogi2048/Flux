@@ -1,6 +1,7 @@
 //this is common user model assigned to both admin and vol
 class UserModel{
   String uid;
+  List<String> ngoid;
   String name;
   String email;
   String role; // admin or volunteer
@@ -10,6 +11,7 @@ class UserModel{
   bool isActive;
   UserModel({
     required this.uid,
+    required this.ngoid,
     required this.name,
     required this.email,
     required this.role,

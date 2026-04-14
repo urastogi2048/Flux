@@ -33,6 +33,7 @@ class _AdminSetupScreenState extends ConsumerState<AdminSetupScreen> {
 
     final userModel = UserModel(
       uid: user.uid,
+      ngoid: [],
       email: user.email ?? '',
       name: _nameCtrl.text.trim(),
       phone: _phoneCtrl.text.trim(),
@@ -53,7 +54,7 @@ class _AdminSetupScreenState extends ConsumerState<AdminSetupScreen> {
     );
 
     await authService.createAdminProfile(user: userModel, admin: adminModel);
-
+    await authService.createNGO(adminuid: user.uid, ngoname: _ngoNameCtrl.text.trim(), ngotype: _ngoTypeCtrl.text.trim(), description: '', servicelocations: []);
     if (mounted) {
       setState(() => _isLoading = false);
       Navigator.of(context).pushAndRemoveUntil(

@@ -33,6 +33,7 @@ class _VolunteerSetupScreenState extends ConsumerState<VolunteerSetupScreen> {
 
     final userModel = UserModel(
       uid: user.uid,
+      ngoid: [],
       email: user.email ?? '',
       name: _nameCtrl.text.trim(),
       phone: _phoneCtrl.text.trim(),
