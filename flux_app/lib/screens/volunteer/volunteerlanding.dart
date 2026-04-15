@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +14,7 @@ class VolunteerLanding extends ConsumerStatefulWidget {
 
 class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   int _navIndex = 0;
+  String? selectedFileName;
 
   static const Color _navy = Color(0xFF002B9A);
   static const Color _sky = Color(0xFFCDE8FF);
@@ -31,6 +33,20 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
     );
   }
   
+  Future<void> _pickFile() async{
+    final result = await FilePicker.platform.pickFiles();
+
+    if(result != null){
+      setState(() {
+        selectedFileName = result.files.first.name;
+      });
+
+      print("Selected file: $selectedFileName");
+      
+    }else{
+      print("user canceled");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -672,7 +688,10 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: () {},
+              onPressed: () {
+                _pickFile();
+
+              },
               style: FilledButton.styleFrom(
                 backgroundColor: _navy,
                 foregroundColor: Colors.white,
@@ -684,6 +703,10 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
               child: const Text('Submit Report 📤'),
             ),
           ),
+          if(selectedFileName != null) ...[
+            const SizedBox(height: 10,),
+            Text("Selected: $selectedFileName"),
+          ],
         ],
       ),
     );
