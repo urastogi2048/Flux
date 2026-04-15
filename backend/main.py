@@ -1,7 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic_models import UploadRequest,MetadataRequest
 from s3 import generate_upload_url,file_exists
+from sqlalchemy.orm import Session
 from database import engine,SessionLocal
 import database_models
 
@@ -10,6 +11,13 @@ database_models.Base.metadata.create_all(bind=engine)
 app=FastAPI()
 
 app = FastAPI()
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -67,3 +75,37 @@ def save_metadata(req: MetadataRequest):
     db.commit()
 
     return {"message": "Metadata saved successfully"}
+
+
+@app.get("/uploads/ngo/{ngo_id}")
+def get_ngo_uploads(ngo_id: str, db: Session = Depends(get_db)):
+    uploads = db.query(database_models.FileUpload).filter(
+        database_models.FileUpload.ngo_id == ngo_id
+    ).all()
+    return uploads
+
+@app.get("/uploads/ngo/{ngo_id}/user/{user_id}")
+def get_user_uploads(ngo_id: str, user_id: str, db: Session = Depends(get_db)):
+    uploads = db.query(database_models.FileUpload).filter(
+        database_models.FileUpload.ngo_id == ngo_id,
+        database_models.FileUpload.user_id == user_id
+    ).order_by(database_models.FileUpload.created_at.desc()).all()
+    return uploads
+
+@app.get("/uploads/status/latest")
+def get_latest_upload_status(ngo_id: str, user_id: str, db: Session = Depends(get_db)):
+    upload = db.query(database_models.FileUpload).filter(
+        database_models.FileUpload.ngo_id == ngo_id,
+        database_models.FileUpload.user_id == user_id
+    ).order_by(database_models.FileUpload.created_at.desc()).first()
+
+    if not upload:
+        raise HTTPException(status_code=404, detail="No uploads found for this user")
+    
+    return {
+        "id": upload.id,
+        "status": upload.status,
+        "ml_result": upload.ml_result,
+        "file_url": upload.file_url,
+        "created_at": upload.created_at
+    }
