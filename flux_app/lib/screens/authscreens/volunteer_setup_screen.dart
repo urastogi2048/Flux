@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/usermodel.dart';
 import '../../models/volunteermodel.dart';
-import '../dashboards/volunteer_dashboard.dart';
+import '../volunteer/ngo_search_join_screen.dart';
 
 class VolunteerSetupScreen extends ConsumerStatefulWidget {
   const VolunteerSetupScreen({super.key});
@@ -60,7 +60,9 @@ class _VolunteerSetupScreenState extends ConsumerState<VolunteerSetupScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const VolunteerDashboard()),
+        MaterialPageRoute(
+          builder: (context) => NGOSearchJoinScreen(volunteerUid: user.uid),
+        ),
         (route) => false,
       );
     }

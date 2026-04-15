@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
 import '../authscreens/auth_wrapper.dart';
+import 'ngo_search_join_screen.dart';
 
 class VolunteerLanding extends ConsumerStatefulWidget {
   const VolunteerLanding({super.key});
@@ -129,6 +130,25 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
               fontWeight: FontWeight.bold,
               color: _navy,
             ),
+          ),
+        ),
+        IconButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NGOSearchJoinScreen(
+                  volunteerUid: ref.read(currentUserUidProvider) ?? '',
+                ),
+              ),
+            );
+          },
+          icon: const Icon(Icons.business_outlined),
+          color: _navy,
+          tooltip: 'Join More NGOs',
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.white,
+            shape: const CircleBorder(),
           ),
         ),
         IconButton(
