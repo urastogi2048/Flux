@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flux_app/screens/admin_landing/admin_landing.dart';
 import 'package:flux_app/screens/volunteer/volunteerlanding.dart';
+import 'package:flux_app/screens/volunteer/ngo_search_join_screen.dart';
 import '../../providers/auth_provider.dart';
 import '../dashboards/admin_dashboard.dart';
 import '../dashboards/volunteer_dashboard.dart';
@@ -27,7 +28,32 @@ class AuthWrapper extends ConsumerWidget {
             if (isAdmin == true) {
               return const AdminLandingScreen();
             } else if (isAdmin == false) {
-              return const VolunteerLanding();
+              // For volunteers, check if they have joined an NGO
+              final userDetailsAsync = ref.watch(userDetailsProvider(user.uid));
+
+              return userDetailsAsync.when(
+                data: (userModel) {
+                  if (userModel == null) {
+                    return const Scaffold(
+                      body: Center(child: Text('User not found')),
+                    );
+                  }
+
+                  // If volunteer hasn't joined any NGO, show NGO search screen
+                  if (userModel.ngoid.isEmpty) {
+                    return NGOSearchJoinScreen(volunteerUid: user.uid);
+                  }
+
+                  // Otherwise, show volunteer landing
+                  return const VolunteerLanding();
+                },
+                loading: () => const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                ),
+                error: (err, stack) => Scaffold(
+                  body: Center(child: Text('Error loading user details: $err')),
+                ),
+              );
             } else {
               return SignUpAs();
             }
