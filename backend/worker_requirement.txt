@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+boto3
+paddleocr
+paddlepaddle  # Use 'paddlepaddle-gpu' only if you have a GPU, otherwise this.
+opencv-python-headless  # Crucial: the 'headless' version doesn't need a UI.
+python-dotenv
