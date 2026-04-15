@@ -1,76 +1,41 @@
 import argparse
+import io
 import os
 
-import cv2
-import numpy as np
-
-os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
-os.environ["FLAGS_use_mkldnn"] = "0"
-os.environ["FLAGS_enable_pir_api"] = "0"
-
-from paddleocr import PaddleOCR
+import pytesseract
+from PIL import Image, ImageOps
 
 
 class TextExtractor:
     def __init__(self, lang="en"):
-        self.ocr = PaddleOCR(
-            use_textline_orientation=True,
-            lang=lang,
-            enable_mkldnn=False,
-        )
+        self.lang = lang
+        tesseract_cmd = os.getenv("TESSERACT_CMD")
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
     def read_text(self, image_bytes: bytes):
-        text = []
-
         if not image_bytes:
             print("no image data provided")
             return []
 
-        image_array = np.frombuffer(image_bytes, dtype=np.uint8)
-        img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-        if img is None:
+        try:
+            image = Image.open(io.BytesIO(image_bytes))
+        except Exception:
             print("unable to decode image bytes")
             return []
 
-        image = self.preprocess_image(img)
-
-        result = self.ocr.predict(image)
-        page_text = []
-        if result:
-            first_result = result[0]
-            if isinstance(first_result, dict) and "rec_texts" in first_result:
-                page_text.extend(first_result.get("rec_texts") or [])
-            elif isinstance(first_result, list):
-                for line in first_result:
-                    text_content = line[1][0]
-                    page_text.append(text_content)
-
-        text.append("\n".join(page_text))
-
-        return text
+        preprocessed = self.preprocess_image(image)
+        extracted_text = pytesseract.image_to_string(preprocessed, lang=self.lang).strip()
+        return [extracted_text] if extracted_text else []
 
     def preprocess_image(self, image):
-        if len(image.shape) == 3:
-            if image.shape[2] == 4:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
-            else:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = image
-        denoised = cv2.fastNlMeansDenoising(gray, h=30)
-        thresh = cv2.adaptiveThreshold(
-            denoised,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            11,
-            2,
-        )
-        return cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+        gray = ImageOps.grayscale(image)
+        # Simple binarization boosts OCR quality while keeping dependencies minimal.
+        return gray.point(lambda p: 255 if p > 160 else 0)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Extract text from an image using PaddleOCR")
+    parser = argparse.ArgumentParser(description="Extract text from an image using Tesseract OCR")
     parser.add_argument("filepath", help="Path to input image")
     args = parser.parse_args()
 
