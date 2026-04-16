@@ -2,7 +2,8 @@ import time
 
 from app.db import SessionLocal
 from app.models import FileUpload
-from app.services import S3_BUCKET, TextExtractor, s3
+from app.services import S3_BUCKET, s3
+from app.services.ocr_pipeline import TextExtractor
 
 ocr = TextExtractor()
 
