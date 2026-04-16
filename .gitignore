@@ -10,3 +10,4 @@ __pycache__/
 backend/.env
 backend/backenv/
 flux_app/pubspec.lock
+backend/worker_env
