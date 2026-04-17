@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flux_app/screens/admin_landing/admin_landing.dart';
+import 'package:flux_app/screens/admin/admin_landing/admin_landing.dart';
 import 'package:flux_app/screens/volunteer/volunteerlanding.dart';
 import 'package:flux_app/screens/volunteer/ngo_search_join_screen.dart';
 import '../../providers/auth_provider.dart';

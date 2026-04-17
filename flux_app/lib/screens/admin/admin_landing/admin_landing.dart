@@ -1,9 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flux_app/screens/admin/admin_create_task.dart';
 
-import '../../providers/auth_provider.dart';
-import '../authscreens/auth_wrapper.dart';
+import '../../../providers/auth_provider.dart';
+import '../../authscreens/auth_wrapper.dart';
 
 /// Admin home / landing — layout matches product mock (navy + sky blue).
 class AdminLandingScreen extends ConsumerStatefulWidget {
@@ -82,7 +83,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
       case 0:
         return _buildHomeContent(textTheme, name);
       case 1:
-        return _buildTasksContent();
+        return AdminCreateTask();
       case 2:
         return _buildMapContent();
       case 3:
@@ -256,29 +257,6 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
               Center(child: Text('Error loading user data: $error')),
         ),
       );
-  }
-
-    Widget _buildTasksContent() {
-    return SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.task_alt, size: 80, color: _navy),
-            const SizedBox(height: 20),
-            Text(
-              'Tasks Screen',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Coming soon',
-              style: TextStyle(fontSize: 16, color: _labelGrey),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
     Widget _buildMapContent() {

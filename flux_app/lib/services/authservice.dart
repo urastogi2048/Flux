@@ -241,4 +241,40 @@ class AuthService {
       return null;
     }
   }
+
+  Future<String?> createTask({
+  required String ngoid,
+  required String title,
+  required String description,
+  required List<GeoPoint> locations,
+  required String deadline,
+  required int maxvolunteers,
+}) async {
+  try {
+    print("ENTERING createTask");
+
+    final taskRef = _firestore.collection('tasks').doc();
+    final taskId = taskRef.id;
+
+    await taskRef.set({
+      'taskid': taskId,
+      'ngoid': ngoid,
+      'title': title,
+      'description': description,
+      'locations': locations,
+      'deadline': deadline,
+      'maxvolunteers': maxvolunteers,
+      'requiredvolunteeruid': [],
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    print("TASK CREATED");
+
+    return taskId;
+  } catch (e) {
+    print("ERROR: $e");
+    return null;
+  }
+}
+
 }

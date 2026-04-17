@@ -41,3 +41,12 @@ final userProfileProvider =
 
       return doc.data();
     });
+
+    final ngoTasksProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, ngoid) async {
+  final snapshot = await FirebaseFirestore.instance
+      .collection('tasks')
+      .where('ngoid', isEqualTo: ngoid)
+      .get();
+
+  return snapshot.docs.map((doc) => doc.data()).toList();
+});
