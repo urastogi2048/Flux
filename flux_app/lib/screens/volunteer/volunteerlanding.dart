@@ -1,8 +1,11 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io';
 
 import '../../providers/auth_provider.dart';
+import '../../services/datauploadservice.dart';
 import '../authscreens/auth_wrapper.dart';
 import 'ngo_search_join_screen.dart';
 
@@ -16,6 +19,8 @@ class VolunteerLanding extends ConsumerStatefulWidget {
 class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   int _navIndex = 0;
   String? selectedFileName;
+  bool _isUploading = false;
+  late DataUploadService _uploadService;
 
   static const Color _navy = Color(0xFF002B9A);
   static const Color _sky = Color(0xFFCDE8FF);
@@ -23,6 +28,12 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   static const Color _labelGrey = Color(0xFF6B7280);
   static const Color _completeGreen = Color(0xFF1B8A4A);
   static const Color _alertRed = Color(0xFFE53935);
+
+  @override
+  void initState() {
+    super.initState();
+    _uploadService = DataUploadService();
+  }
 
   Future<void> _signOut() async {
     await ref.read(authServiceProvider).signOut();
@@ -34,19 +45,139 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
     );
   }
   
-  Future<void> _pickFile() async{
+  Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles();
 
-    if(result != null){
-      setState(() {
-        selectedFileName = result.files.first.name;
-      });
-
-      print("Selected file: $selectedFileName");
-      
-    }else{
-      print("user canceled");
+    if (result == null) {
+      print("User canceled file picker");
+      return;
     }
+
+    final pickedFile = File(result.files.first.path!);
+    final fileName = result.files.first.name;
+    
+    setState(() {
+      selectedFileName = fileName;
+    });
+
+    // Get user ID
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      _showError('User not authenticated');
+      return;
+    }
+
+    // Get NGO ID from user's joined NGOs
+    final userAsync = ref.read(userDetailsProvider(userId));
+    final ngoId = userAsync.maybeWhen(
+      data: (user) {
+        if (user?.ngoid.isEmpty ?? true) {
+          _showError('Please join an NGO first');
+          return null;
+        }
+        return user!.ngoid[0]; // Get first NGO
+      },
+      orElse: () => null,
+    );
+
+    if (ngoId == null) {
+      _showError('Unable to get NGO information');
+      return;
+    }
+
+    // Determine file type
+    String fileType = _getFileType(fileName);
+
+    setState(() => _isUploading = true);
+
+    try {
+      // Step 1: Get signed URL
+      final urlResponse = await _uploadService.getUploadUrl(
+        userId: userId,
+        ngoId: ngoId,
+        fileType: fileType,
+      );
+
+      if (urlResponse == null) {
+        throw Exception('Failed to get upload URL');
+      }
+
+      final signedUrl = urlResponse['upload_url'];
+      final fileUrl = urlResponse['file_url'];
+      final key = urlResponse['key'];
+
+      print('===== SIGNED URL DEBUG =====');
+      print('Signed URL: $signedUrl');
+      print('File URL: $fileUrl');
+      print('Key: $key');
+      print('============================');
+
+      // Step 2: Upload file to S3
+      final uploadSuccess = await _uploadService.uploadFiletoS3(
+        signedUrl: signedUrl,
+        file: pickedFile,
+        fileType: fileType,
+      );
+
+      if (uploadSuccess != true) {
+        throw Exception('Failed to upload file to S3');
+      }
+
+      // Step 3: Save metadata
+      final metaSaved = await _uploadService.saveMetaData(
+        userId: userId,
+        ngoId: ngoId,
+        key: key,
+        fileUrl: fileUrl,
+      );
+
+      if (metaSaved != true) {
+        throw Exception('Failed to save file metadata');
+      }
+
+      setState(() => _isUploading = false);
+      _showSuccess('File uploaded successfully! ✓');
+      
+    } catch (e) {
+      setState(() => _isUploading = false);
+      _showError('Upload failed: $e');
+      print("Upload error: $e");
+    }
+  }
+
+  String _getFileType(String fileName) {
+    final ext = fileName.split('.').last.toLowerCase();
+    final mimeTypes = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'txt': 'text/plain',
+    };
+    return mimeTypes[ext] ?? 'application/octet-stream';
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: _alertRed,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: _completeGreen,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -708,10 +839,7 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: () {
-                _pickFile();
-
-              },
+              onPressed: _isUploading ? null : () => _pickFile(),
               style: FilledButton.styleFrom(
                 backgroundColor: _navy,
                 foregroundColor: Colors.white,
@@ -720,12 +848,39 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Text('Submit Report 📤'),
+              child: _isUploading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Submit Report 📤'),
             ),
           ),
           if(selectedFileName != null) ...[
             const SizedBox(height: 10,),
-            Text("Selected: $selectedFileName"),
+            Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: _completeGreen,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Selected: $selectedFileName",
+                    style: TextStyle(
+                      color: _completeGreen,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ],
       ),
