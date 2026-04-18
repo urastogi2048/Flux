@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flux_app/screens/volunteer/volunteer_task_screen.dart';
 import 'dart:io';
 
 import '../../providers/auth_provider.dart';
@@ -311,7 +312,7 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
       case 0:
         return _buildHomeContent(textTheme, name);
       case 1:
-        return _buildTasksContent();
+        return VolunteerTaskScreen();
       case 2:
         return _buildMapContent();
       case 3:
@@ -469,29 +470,6 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
               iconColor: _completeGreen,
               name: 'Relief_Distribution_Notes.txt',
               meta: '0.3 MB • 5h ago',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTasksContent() {
-    return SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.task_alt, size: 80, color: _navy),
-            const SizedBox(height: 20),
-            Text(
-              'Tasks Screen',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Coming soon',
-              style: TextStyle(fontSize: 16, color: _labelGrey),
             ),
           ],
         ),
