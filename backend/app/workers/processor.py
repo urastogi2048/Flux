@@ -1,4 +1,5 @@
 import time
+import filetype
 
 from app.db import SessionLocal
 from app.models import FileUpload
@@ -13,7 +14,9 @@ def fetch_pending_job(db):
 
 
 def run_ocr(image_bytes):
-    return ocr.read_text(image_bytes=image_bytes)
+    kind = filetype.guess(image_bytes)
+    file_type = kind.mime if kind else "application/octet-stream"
+    return ocr.read_text(file_bytes=image_bytes, file_type=file_type)
 
 
 def process_job(job, db):

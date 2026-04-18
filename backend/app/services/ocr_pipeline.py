@@ -10,11 +10,9 @@ import argparse
 class TextExtractor:
     def __init__(self, lang="eng"):
         self.lang = lang
-
-        pytesseract.pytesseract.tesseract_cmd = os.getenv(
-            "TESSERACT_CMD",
-            r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-        )
+        tesseract_cmd = os.getenv("TESSERACT_CMD")
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
     def read_text(self, file_bytes: bytes, file_type: str):
         if not file_bytes:
@@ -44,11 +42,12 @@ class TextExtractor:
 
     def read_pdf(self, pdf_bytes: bytes):
         try:
-            images = convert_from_bytes(
-                pdf_bytes,
-                dpi=300,
-                poppler_path=r"C:\poppler\Library\bin"
-            )
+            poppler_path = os.getenv("POPPLER_PATH")
+            kwargs = {"dpi": 300}
+            if poppler_path:
+                kwargs["poppler_path"] = poppler_path
+
+            images = convert_from_bytes(pdf_bytes, **kwargs)
         except Exception as e:
             print(f"Unable to convert pdf: {e}")
             return []

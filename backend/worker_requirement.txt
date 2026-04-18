@@ -4,3 +4,5 @@ boto3
 python-dotenv
 pytesseract
 Pillow
+filetype
+pdf2image
