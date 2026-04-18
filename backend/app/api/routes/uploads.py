@@ -7,7 +7,7 @@ from app.schemas import MetadataRequest, UploadRequest
 from app.services import file_exists, generate_upload_url
 
 router = APIRouter()
-ALLOWED_TYPES = ["image/jpeg", "image/png"]
+ALLOWED_TYPES = ["image/jpeg", "image/png", "image/jpg", "application/pdf"]
 
 
 def get_db():
@@ -23,9 +23,11 @@ def get_upload_url(req: UploadRequest):
     if req.file_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="Invalid File Type")
     if not req.user_id or not req.ngo_id:
-        raise HTTPException(status_code=400, detail="Missing user_id or ngo_id")
+        raise HTTPException(
+            status_code=400, detail="Missing user_id or ngo_id")
 
-    upload_url, file_url, key = generate_upload_url(req.user_id, req.ngo_id, req.file_type)
+    upload_url, file_url, key = generate_upload_url(
+        req.user_id, req.ngo_id, req.file_type)
 
     return {
         "upload_url": upload_url,
@@ -43,7 +45,8 @@ def save_metadata(req: MetadataRequest, db: Session = Depends(get_db)):
     if not file_exists(req.key):
         raise HTTPException(status_code=400, detail="File not found in S3")
 
-    existing = db.query(FileUpload).filter(FileUpload.s3_key == req.key).first()
+    existing = db.query(FileUpload).filter(
+        FileUpload.s3_key == req.key).first()
     if existing:
         return {"message": "Already exists"}
 
@@ -88,7 +91,8 @@ def get_latest_upload_status(ngo_id: str, user_id: str, db: Session = Depends(ge
     )
 
     if not upload:
-        raise HTTPException(status_code=404, detail="No uploads found for this user")
+        raise HTTPException(
+            status_code=404, detail="No uploads found for this user")
 
     return {
         "id": upload.id,
