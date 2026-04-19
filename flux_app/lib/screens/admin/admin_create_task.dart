@@ -30,6 +30,7 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
   late TextEditingController _titleCtrl;
   late TextEditingController _descCtrl;
   late TextEditingController _deadlineCtrl;
+  late TextEditingController _locationCtrl;
   late TextEditingController _maxCtrl;
 
   bool _loading = false;
@@ -40,6 +41,7 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
     _titleCtrl = TextEditingController(text: widget.mlTitle ?? '');
     _descCtrl = TextEditingController(text: widget.mlDescription ?? '');
     _deadlineCtrl = TextEditingController(text: widget.mlDeadline ?? '');
+    _locationCtrl = TextEditingController();
     _maxCtrl = TextEditingController();
   }
 
@@ -66,7 +68,7 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
         return;
       }
 
-      if (_titleCtrl.text.isEmpty || _descCtrl.text.isEmpty || _deadlineCtrl.text.isEmpty) {
+      if (_titleCtrl.text.isEmpty || _descCtrl.text.isEmpty || _deadlineCtrl.text.isEmpty || _locationCtrl.text.isEmpty) {
         _showError('Please fill in all fields');
         return;
       }
@@ -76,7 +78,7 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
         adminUid: uid,
         title: _titleCtrl.text,
         description: _descCtrl.text,
-        locations: [GeoPoint(0, 0)],
+        location: _locationCtrl.text,
         deadline: _deadlineCtrl.text,
         maxvolunteers: max,
       );
@@ -189,10 +191,6 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
           ),
         ),
         centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -269,6 +267,12 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
               ),
               const SizedBox(height: 16),
               _buildTextField(
+                controller: _locationCtrl,
+                label: 'Location',
+                hint: 'e.g., Community Center, Main Street, Room 101',
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
                 controller: _maxCtrl,
                 label: 'Max Volunteers',
                 hint: 'Enter maximum number of volunteers',
@@ -340,6 +344,7 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _deadlineCtrl.dispose();
+    _locationCtrl.dispose();
     _maxCtrl.dispose();
     super.dispose();
   }

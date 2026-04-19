@@ -5,7 +5,7 @@ class TaskModel{
   String ngoid;
   String title;
   String description;
-  List<GeoPoint> locations;
+  String location;
   String deadline;
   List<String> requiredvolunteeruid;
 TaskModel({
@@ -13,7 +13,7 @@ TaskModel({
   required this.ngoid,
   required this.title,
   required this.description,
-  required this.locations,
+  required this.location,
   required this.deadline,
   required this.requiredvolunteeruid,
 });

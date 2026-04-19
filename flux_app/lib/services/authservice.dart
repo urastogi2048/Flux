@@ -247,7 +247,7 @@ class AuthService {
   required String adminUid,
   required String title,
   required String description,
-  required List<GeoPoint> locations,
+  required String location,
   required String deadline,
   required int maxvolunteers,
 }) async {
@@ -263,11 +263,11 @@ class AuthService {
       'createdBy': adminUid,
       'title': title,
       'description': description,
-      'locations': locations,
+      'location': location,
       'deadline': deadline,
       'maxvolunteers': maxvolunteers,
       'requiredvolunteeruid': [],
-      'status': 'active',
+      'status': 'ASSIGNED',
       'createdAt': FieldValue.serverTimestamp(),
     });
 

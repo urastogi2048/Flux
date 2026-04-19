@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flux_app/screens/volunteer/volunteer_task_screen.dart';
+import 'package:flux_app/screens/volunteer/volunteer_map_screen.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import '../../providers/auth_provider.dart';
 import '../../services/datauploadservice.dart';
@@ -524,19 +527,7 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
               ),
             ),
             const SizedBox(height: 12),
-            _uploadRow(
-              icon: Icons.image_outlined,
-              iconColor: _navy,
-              name: 'Task_Report_Medical_Delivery.jpg',
-              meta: '2.1 MB • 2h ago',
-            ),
-            const SizedBox(height: 10),
-            _uploadRow(
-              icon: Icons.description_outlined,
-              iconColor: _completeGreen,
-              name: 'Relief_Distribution_Notes.txt',
-              meta: '0.3 MB • 5h ago',
-            ),
+            _buildRecentUploads(),
           ],
         ),
       ),
@@ -791,33 +782,7 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   }
 
   Widget _buildMapContent() {
-    return SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map, size: 80, color: _navy),
-            const SizedBox(height: 20),
-            Text(
-              'Map Screen',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
-            ),
-            const SizedBox(height: 10),
-            if (_selectedNGOData != null) ...[
-              Text(
-                '${_selectedNGOData!['name'] ?? 'NGO'} Map View',
-                style: TextStyle(fontSize: 14, color: _labelGrey),
-              ),
-              const SizedBox(height: 10),
-            ],
-            Text(
-              'Coming soon',
-              style: TextStyle(fontSize: 16, color: _labelGrey),
-            ),
-          ],
-        ),
-      ),
-    );
+    return VolunteerMapScreen(selectedNGOId: _selectedNGOId);
   }
 
   Widget _buildProfileContent() {
@@ -1476,70 +1441,81 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   }
 
   Widget _nearbyTasksMap() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
-        height: 160,
-        width: double.infinity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF1A2744),
-                    Color(0xFF243B55),
-                    Color(0xFF2D4A3E),
+    return GestureDetector(
+      onTap: () {
+        // Redirect to map screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VolunteerMapScreen(selectedNGOId: _selectedNGOId),
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          height: 160,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF1A2744),
+                      Color(0xFF243B55),
+                      Color(0xFF2D4A3E),
+                    ],
+                  ),
+                ),
+              ),
+              CustomPaint(painter: _TopoLinesPainter()),
+              Align(
+                alignment: const Alignment(0.25, -0.15),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'NEAR YOU',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: _navy,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: _completeGreen,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-            CustomPaint(painter: _TopoLinesPainter()),
-            Align(
-              alignment: const Alignment(0.25, -0.15),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                    child: const Text(
-                      'NEAR YOU',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: _navy,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: _completeGreen,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1658,6 +1634,121 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
         ],
       ),
     );
+  }
+
+  Widget _buildRecentUploads() {
+    final userId = ref.read(currentUserUidProvider);
+    if (_selectedNGOId == null || userId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<dynamic>(
+      future: _getRecentUploads(userId, _selectedNGOId!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const Text('No recent reports');
+        }
+
+        final uploads = snapshot.data as List<dynamic>;
+        if (uploads.isEmpty) {
+          return const Text('No recent reports');
+        }
+
+        return Column(
+          children: List.generate(
+            uploads.length,
+            (index) {
+              final upload = uploads[index] as Map<String, dynamic>;
+              final fileName = upload['s3_key']?.toString().split('/').last ?? 'Unknown file';
+              final fileSize = upload['file_size'] ?? 'Unknown size';
+              final createdAt = upload['created_at'];
+              
+              final timeDiff = _getTimeDifference(_parseDateTime(createdAt));
+              final icon = _getFileIcon(fileName);
+              
+              return Column(
+                children: [
+                  _uploadRow(
+                    icon: icon,
+                    iconColor: index == 0 ? _navy : _completeGreen,
+                    name: fileName,
+                    meta: '$fileSize • $timeDiff',
+                  ),
+                  if (index < uploads.length - 1) const SizedBox(height: 10),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<List<dynamic>> _getRecentUploads(String userId, String ngoId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://flux-test-cg9c.onrender.com/uploads/ngo/$ngoId/user/$userId'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final uploads = (data is List) ? data : [];
+        return uploads.take(3).toList();
+      }
+      return [];
+    } catch (e) {
+      print('[VolunteerLanding] Error fetching uploads: $e');
+      return [];
+    }
+  }
+
+  DateTime? _parseDateTime(dynamic dateTime) {
+    if (dateTime == null) return null;
+    if (dateTime is String) {
+      try {
+        return DateTime.parse(dateTime);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String _getTimeDifference(DateTime? dateTime) {
+    if (dateTime == null) return 'recently';
+    
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return dateTime.toString().split(' ')[0];
+    }
+  }
+
+  IconData _getFileIcon(String fileName) {
+    if (fileName.toLowerCase().endsWith('.pdf')) {
+      return Icons.picture_as_pdf_outlined;
+    } else if (fileName.toLowerCase().endsWith('.txt')) {
+      return Icons.description_outlined;
+    } else if (fileName.toLowerCase().endsWith('.jpg') || 
+               fileName.toLowerCase().endsWith('.png') ||
+               fileName.toLowerCase().endsWith('.jpeg')) {
+      return Icons.image_outlined;
+    } else if (fileName.toLowerCase().endsWith('.xls') || 
+               fileName.toLowerCase().endsWith('.xlsx')) {
+      return Icons.table_chart_outlined;
+    }
+    return Icons.attach_file_outlined;
   }
 
   Widget _uploadRow({

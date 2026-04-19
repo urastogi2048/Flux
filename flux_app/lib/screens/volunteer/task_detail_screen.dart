@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../utils/task_normalizer.dart';
 
 class TaskDetailScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> task;
@@ -18,6 +19,7 @@ class TaskDetailScreen extends ConsumerStatefulWidget {
 
 class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   late FirebaseFirestore _firestore;
+  late Map<String, dynamic> _normalizedTask;
   bool _isLoading = false;
 
   static const Color _navy = Color(0xFF002B9A);
@@ -31,23 +33,34 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   void initState() {
     super.initState();
     _firestore = FirebaseFirestore.instance;
+    // Normalize task data on initialization
+    _normalizedTask = TaskNormalizer.normalizeTask(
+      Map<String, dynamic>.from(widget.task),
+      taskId: widget.task['taskid'] ?? widget.task['id'] ?? 'unknown',
+      ngoidFallback: widget.selectedNGOId,
+    );
   }
 
   Future<void> _updateTaskStatus(String newStatus) async {
     setState(() => _isLoading = true);
 
     try {
-      final taskId = widget.task['taskid'] ?? widget.task['id'];
+      // Use normalized task ID
+      var taskId = _normalizedTask['taskid'];
       
-      if (taskId == null) {
-        _showError('Task ID not found');
+      if (taskId == null || taskId.isEmpty) {
+        _showError('Error: Task ID not found. Cannot update task.');
+        setState(() => _isLoading = false);
         return;
       }
 
       await _firestore
           .collection('tasks')
           .doc(taskId)
-          .update({'status': newStatus});
+          .update({
+            'status': newStatus,
+            'updatedAt': DateTime.now(),
+          });
 
       _showSuccess('Task updated to $newStatus');
 
@@ -57,9 +70,12 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         Navigator.pop(context, true); // Return true to indicate refresh needed
       }
     } catch (e) {
+      print('Error updating task: $e');
       _showError('Error updating task: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -86,10 +102,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final status = (widget.task['status'] ?? 'ASSIGNED').toString().toUpperCase();
-    final title = widget.task['title'] ?? 'Untitled Task';
-    final description = widget.task['description'] ?? 'No description provided';
-    final location = widget.task['location'] ?? 'No location specified';
+    final status = (_normalizedTask['status'] ?? 'ASSIGNED').toString().toUpperCase();
+    final title = _normalizedTask['title'] ?? 'Untitled Task';
+    final description = _normalizedTask['description'] ?? 'No description provided';
+    final location = _normalizedTask['location'] ?? 'No location specified';
+
+    // Debug: Log task information
+    print('[TaskDetailScreen] ${TaskNormalizer.getTaskDebugInfo(_normalizedTask)}');
 
     return Scaffold(
       backgroundColor: _pageBg,
@@ -275,8 +294,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   }
 
   Widget _buildDetailGrid() {
-    final deadline = widget.task['deadline'] ?? 'No deadline set';
-    final maxVolunteers = widget.task['maxvolunteers'] ?? 0;
+    final deadline = _normalizedTask['deadline'] ?? 'No deadline set';
+    final maxVolunteers = _normalizedTask['maxvolunteers'] ?? 0;
 
     return Row(
       children: [

@@ -133,13 +133,20 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
                 );
               }
 
+              // Normalize tasks to ensure they have all required fields
+              final normalizedTasks = tasks.map((task) {
+                return {
+                  ...task,
+                  'status': (task['status']?.toString() ?? 'ASSIGNED').toUpperCase(),
+                };
+              }).toList();
+
               // Filter tasks based on status
               final filteredTasks = _filterStatus == 'ALL'
-                  ? tasks
-                  : tasks
+                  ? normalizedTasks
+                  : normalizedTasks
                       .where((task) =>
-                          (task['status'] ?? 'ASSIGNED').toString().toUpperCase() ==
-                          _filterStatus)
+                          (task['status'] ?? 'ASSIGNED').toString() == _filterStatus)
                       .toList();
 
               return RefreshIndicator(
@@ -152,7 +159,7 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildTaskStats(tasks),
+                      _buildTaskStats(normalizedTasks),
                       const SizedBox(height: 24),
                       _buildFilterChips(),
                       const SizedBox(height: 20),
