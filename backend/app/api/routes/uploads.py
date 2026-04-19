@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.models import FileUpload
 from app.schemas import MetadataRequest, StateNewsRequest, UploadRequest
-from app.services import file_exists, generate_upload_url, get_news_alerts_by_state
+from app.services import (
+    file_exists,
+    generate_signed_get_url,
+    generate_upload_url,
+    get_news_alerts_by_state,
+)
 
 router = APIRouter()
 ALLOWED_TYPES = ["image/jpeg", "image/png", "image/jpg", "application/pdf"]
@@ -53,15 +58,15 @@ INDIAN_STATES_AND_UTS = {
 
 
 class NGOTaskGenerator:
-        def __init__(self, model_name: str = "models/gemini-2.5-flash"):
-                api_key = os.getenv("GEMINI_API_KEY")
-                if not api_key:
-                        raise ValueError("GEMINI_API_KEY is not configured")
-                self.client = genai.Client(api_key=api_key)
-                self.model_name = model_name
+    def __init__(self, model_name: str = "models/gemini-2.5-flash"):
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY is not configured")
+        self.client = genai.Client(api_key=api_key)
+        self.model_name = model_name
 
-        def generate_task(self, description: str) -> dict:
-                prompt = f"""
+    def generate_task(self, description: str) -> dict:
+        prompt = f"""
 You are an intelligent NGO task planner.
 
 Generate a practical NGO task.
@@ -100,19 +105,19 @@ Output format:
 }}
 """
 
-                response = self.client.models.generate_content(
-                        model=self.model_name,
-                        contents=prompt,
-                        config={"response_mime_type": "application/json"},
-                )
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config={"response_mime_type": "application/json"},
+        )
 
-                try:
-                        return json.loads(response.text)
-                except (json.JSONDecodeError, TypeError):
-                        raise HTTPException(
-                                status_code=502,
-                                detail="LLM returned invalid JSON response",
-                        )
+        try:
+            return json.loads(response.text)
+        except (json.JSONDecodeError, TypeError):
+            raise HTTPException(
+                status_code=502,
+                detail="LLM returned invalid JSON response",
+            )
 
 
 def get_db():
@@ -172,6 +177,9 @@ def save_metadata(req: MetadataRequest, db: Session = Depends(get_db)):
 @router.get("/uploads/ngo/{ngo_id}")
 def get_ngo_uploads(ngo_id: str, db: Session = Depends(get_db)):
     uploads = db.query(FileUpload).filter(FileUpload.ngo_id == ngo_id).all()
+    for upload in uploads:
+        if upload.s3_key:
+            upload.file_url = generate_signed_get_url(upload.s3_key)
     return uploads
 
 
@@ -183,6 +191,9 @@ def get_user_uploads(ngo_id: str, user_id: str, db: Session = Depends(get_db)):
         .order_by(FileUpload.created_at.desc())
         .all()
     )
+    for upload in uploads:
+        if upload.s3_key:
+            upload.file_url = generate_signed_get_url(upload.s3_key)
     return uploads
 
 
@@ -203,7 +214,7 @@ def get_latest_upload_status(ngo_id: str, user_id: str, db: Session = Depends(ge
         "id": upload.id,
         "status": upload.status,
         "ml_result": upload.ml_result,
-        "file_url": upload.file_url,
+        "file_url": generate_signed_get_url(upload.s3_key) if upload.s3_key else upload.file_url,
         "created_at": upload.created_at,
     }
 
@@ -234,7 +245,8 @@ def generate_ngo_task_from_ml_output(ngo_id: str, db: Session = Depends(get_db))
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Task generation failed: {exc}")
+        raise HTTPException(
+            status_code=502, detail=f"Task generation failed: {exc}")
 
     return task_json
 
@@ -251,10 +263,10 @@ def get_news_by_state(req: StateNewsRequest):
     try:
         result = get_news_alerts_by_state(state)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"News pipeline failed: {exc}")
+        raise HTTPException(
+            status_code=502, detail=f"News pipeline failed: {exc}")
 
     return {
         "message": "News alerts fetched successfully",
         "data": result,
     }
-

@@ -9,8 +9,20 @@ s3 = boto3.client(
     region_name=AWS_REGION,
     aws_access_key_id=AWS_ACCESS_KEY,
     aws_secret_access_key=AWS_SECRET_KEY,
-    config=boto3.session.Config(signature_version="s3v4", s3={"addressing_style": "virtual"}),
+    config=boto3.session.Config(signature_version="s3v4", s3={
+                                "addressing_style": "virtual"}),
 )
+
+
+def generate_signed_get_url(key: str, expires_in: int = 604800) -> str:
+    return s3.generate_presigned_url(
+        ClientMethod="get_object",
+        Params={
+            "Bucket": S3_BUCKET,
+            "Key": key,
+        },
+        ExpiresIn=expires_in,
+    )
 
 
 def generate_upload_url(user_id: str, ngo_id: str, file_type: str):
@@ -28,15 +40,7 @@ def generate_upload_url(user_id: str, ngo_id: str, file_type: str):
         },
         ExpiresIn=5000,
     )
-    #file_url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{key}"
-    file_url = s3.generate_presigned_url(
-        ClientMethod="get_object",
-        Params={
-            "Bucket": S3_BUCKET,
-            "Key": key,
-        },
-        ExpiresIn=604800,  # 7 days
-    )
+    file_url = generate_signed_get_url(key)
     return upload_url, file_url, key
 
 
