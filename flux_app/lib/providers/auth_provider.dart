@@ -188,3 +188,55 @@ final pendingDocumentsProvider = FutureProvider.family<int, String>((ref, ngoid)
 final dataUploadServiceProvider = Provider((ref) {
   return DataUploadService();
 });
+final ngoVolunteersProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, ngoid) {
+  return FirebaseFirestore.instance
+      .collection('users')
+      .where('role', isEqualTo: 'volunteer')
+      .where('ngoid', arrayContains: ngoid)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['uid'] = doc.id;
+        return data;
+      }).toList());
+});
+
+final volunteerTaskStatsProvider = FutureProvider.family<Map<String, int>, String>((ref, ngoid) async {
+  try {
+    final usersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'volunteer')
+        .where('ngoid', arrayContains: ngoid)
+        .get();
+
+    print('[VolunteerStats] Found ${usersSnapshot.docs.length} volunteers for NGO: $ngoid');
+
+    int accepted = 0;
+    int completed = 0;
+    int rejected = 0;
+
+    for (var userDoc in usersSnapshot.docs) {
+      final userData = userDoc.data();
+      final volAccepted = (userData['tasksAccepted'] as int?) ?? 0;
+      final volCompleted = (userData['tasksCompleted'] as int?) ?? 0;
+      final volRejected = (userData['tasksRejected'] as int?) ?? 0;
+      
+      print('  - Volunteer: ${userData['name']} | Accepted: $volAccepted, Completed: $volCompleted, Rejected: $volRejected');
+      
+      accepted += volAccepted;
+      completed += volCompleted;
+      rejected += volRejected;
+    }
+
+    print('[VolunteerStats] TOTALS - Accepted: $accepted, Completed: $completed, Rejected: $rejected');
+    
+    return {
+      'accepted': accepted,
+      'completed': completed,
+      'rejected': rejected,
+    };
+  } catch (e) {
+    print('[VolunteerStats] Error: $e');
+    return {'accepted': 0, 'completed': 0, 'rejected': 0};
+  }
+});

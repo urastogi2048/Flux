@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +14,7 @@ import '../../../services/taskgenerationservice.dart';
 import '../../../providers/auth_provider.dart';
 import '../../authscreens/auth_wrapper.dart';
 
-/// Admin home / landing — layout matches product mock (navy + sky blue).
+/// Admin home / landing â€” layout matches product mock (navy + sky blue).
 class AdminLandingScreen extends ConsumerStatefulWidget {
   const AdminLandingScreen({super.key});
 
@@ -95,7 +95,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
       case 2:
         return _buildMapContent();
       case 3:
-        return _allocationAuditCard(textTheme);
+        return _buildHomeContent(textTheme, name);
       default:
         return _buildHomeContent(textTheme, name);
     }
@@ -158,7 +158,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                         child: _metricCard(
                           label: 'ACTIVE TASKS',
                           value: activeTasksCount,
-                          footer: '📈 Real-time count',
+                          footer: 'ðŸ“ˆ Real-time count',
                           footerColor: _completeGreen,
                         ),
                       ),
@@ -167,7 +167,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                         child: _metricCard(
                           label: 'PENDING REPORTS',
                           value: pendingDocsCount,
-                          footer: '❗ Awaiting Smart Match',
+                          footer: 'â— Awaiting Smart Match',
                           footerColor: _alertRed,
                         ),
                       ),
@@ -280,7 +280,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                   const SizedBox(height: 10),
                   _urgencyMap(),
                   const SizedBox(height: 24),
-                  _allocationAuditCard(textTheme),
+                  _volunteerStatsCard(textTheme, ngoId),
                   const SizedBox(height: 24),
                   Text(
                     'Volunteers',
@@ -351,7 +351,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                     icon: icon,
                     iconColor: index == 0 ? _alertRed : _navy,
                     name: fileName,
-                    meta: '$fileSize • $timeDiff',
+                    meta: '$fileSize â€¢ $timeDiff',
                   ),
                   if (index < uploads.length - 1) const SizedBox(height: 10),
                 ],
@@ -644,7 +644,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Text('Run Smart Match ⚡'),
+              child: const Text('Run Smart Match âš¡'),
             ),
           ),
         ],
@@ -920,55 +920,93 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     );
   }
 
-  Widget _allocationAuditCard(TextTheme textTheme) {
+
+  Widget _volunteerStatsCard(TextTheme textTheme, String ngoId) {
+    final statsAsync = ref.watch(volunteerTaskStatsProvider(ngoId));
+
     return SafeArea(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+      child: statsAsync.when(
+        data: (stats) {
+          final accepted = stats['accepted'] ?? 0;
+          final completed = stats['completed'] ?? 0;
+          final rejected = stats['rejected'] ?? 0;
+
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Volunteer Activity',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                  ),
+                ),
+                const Divider(height: 24),
+                _statRow('Tasks Accepted', accepted.toString(), Colors.blue),
+                const SizedBox(height: 12),
+                _statRow('Tasks Completed', completed.toString(), _completeGreen),
+                const SizedBox(height: 12),
+                _statRow('Tasks Rejected', rejected.toString(), _alertRed),
+              ],
+            ),
+          );
+        },
+        loading: () => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Center(child: CircularProgressIndicator(color: _navy)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Allocation Audit',
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: _navy,
-              ),
-            ),
-            const Divider(height: 24),
-            _auditRow('Efficiency rate', '94.2%', highlight: false),
-            const SizedBox(height: 12),
-            _auditRow('Avg. proximity', '1.2km', highlight: false),
-            const SizedBox(height: 12),
-            _auditRow('Conflicts', '0', highlight: true),
-          ],
+        error: (error, stack) => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Center(
+            child: Text('Error loading stats', style: TextStyle(color: _alertRed)),
+          ),
         ),
       ),
     );
   }
 
-  Widget _auditRow(String label, String value, {required bool highlight}) {
+  Widget _statRow(String label, String value, Color color) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(color: _labelGrey, fontSize: 14)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: highlight ? _alertRed : _navy,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -1468,3 +1506,4 @@ class _TopoLinesPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
