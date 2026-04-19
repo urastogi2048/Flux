@@ -2,8 +2,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flux_app/screens/volunteer/volunteer_task_screen.dart';
+import 'package:flux_app/screens/volunteer/volunteer_map_screen.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import '../../providers/auth_provider.dart';
 import '../../services/datauploadservice.dart';
@@ -11,7 +15,9 @@ import '../authscreens/auth_wrapper.dart';
 import 'ngo_search_join_screen.dart';
 
 class VolunteerLanding extends ConsumerStatefulWidget {
-  const VolunteerLanding({super.key});
+  final String? selectedNGOId;
+
+  const VolunteerLanding({super.key, this.selectedNGOId});
 
   @override
   ConsumerState<VolunteerLanding> createState() => VolunteerLandingState();
@@ -22,6 +28,10 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   String? selectedFileName;
   bool _isUploading = false;
   late DataUploadService _uploadService;
+  String? _selectedNGOId;
+  List<Map<String, dynamic>> _joinedNGOs = [];
+  Map<String, dynamic>? _selectedNGOData;
+  bool _isLoadingNGOs = true;
 
   static const Color _navy = Color(0xFF002B9A);
   static const Color _sky = Color(0xFFCDE8FF);
@@ -34,6 +44,49 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   void initState() {
     super.initState();
     _uploadService = DataUploadService();
+    _selectedNGOId = widget.selectedNGOId;
+    _loadJoinedNGOs();
+  }
+
+  Future<void> _loadJoinedNGOs() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      final ngoIds = List<String>.from(userDoc.data()?['ngoid'] ?? []);
+
+      if (ngoIds.isNotEmpty) {
+        final ngoSnapshot = await FirebaseFirestore.instance
+            .collection('ngos')
+            .where('ngoid', whereIn: ngoIds)
+            .get();
+
+        final ngos = ngoSnapshot.docs.map((doc) => doc.data()).toList();
+
+        setState(() {
+          _joinedNGOs = ngos;
+          // Set selected NGO - use passed param or first joined NGO
+          if (_selectedNGOId != null && 
+              ngos.any((ngo) => ngo['ngoid'] == _selectedNGOId)) {
+            _selectedNGOData = ngos.firstWhere((ngo) => ngo['ngoid'] == _selectedNGOId);
+          } else if (ngos.isNotEmpty) {
+            _selectedNGOId = ngos[0]['ngoid'];
+            _selectedNGOData = ngos[0];
+          }
+          _isLoadingNGOs = false;
+        });
+      } else {
+        setState(() => _isLoadingNGOs = false);
+      }
+    } catch (e) {
+      print("Error loading NGOs: $e");
+      setState(() => _isLoadingNGOs = false);
+    }
   }
 
   Future<void> _signOut() async {
@@ -312,7 +365,7 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
       case 0:
         return _buildHomeContent(textTheme, name);
       case 1:
-        return VolunteerTaskScreen();
+        return VolunteerTaskScreen(selectedNGOId: _selectedNGOId);
       case 2:
         return _buildMapContent();
       case 3:
@@ -323,6 +376,55 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   }
 
   Widget _buildHomeContent(TextTheme textTheme, String name) {
+    if (_isLoadingNGOs) {
+      return Center(
+        child: CircularProgressIndicator(color: _navy),
+      );
+    }
+
+    if (_joinedNGOs.isEmpty) {
+      return SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.business_outlined, size: 80, color: _labelGrey),
+              const SizedBox(height: 20),
+              Text(
+                'No NGO Joined',
+                style: textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Join an NGO to get started',
+                style: textTheme.bodyMedium?.copyWith(color: _labelGrey),
+              ),
+              const SizedBox(height: 30),
+              FilledButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NGOSearchJoinScreen(
+                        volunteerUid: FirebaseAuth.instance.currentUser?.uid ?? '',
+                      ),
+                    ),
+                  );
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: _navy,
+                ),
+                child: const Text('Join an NGO'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -330,6 +432,9 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(textTheme, name),
+            const SizedBox(height: 16),
+            // NGO Selector
+            _buildNGOSelector(),
             const SizedBox(height: 20),
             Text(
               'Welcome back, volunteer.',
@@ -340,31 +445,11 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Your impact matters, let\'s make a difference today.',
+              '${_selectedNGOData?['name'] ?? 'NGO'} - ${_selectedNGOData?['ngotype'] ?? 'Organization'}',
               style: textTheme.bodyMedium?.copyWith(color: _labelGrey),
             ),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _metricCard(
-                    label: 'MY TASKS',
-                    value: '2',
-                    footer: '🔔 1 new assignment',
-                    footerColor: _alertRed,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _metricCard(
-                    label: 'COMPLETED',
-                    value: '18',
-                    footer: '✓ This month',
-                    footerColor: _completeGreen,
-                  ),
-                ),
-              ],
-            ),
+            _buildTaskMetrics(),
             const SizedBox(height: 16),
             _myAssignedTasksCard(textTheme),
             const SizedBox(height: 12),
@@ -372,23 +457,7 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
             const SizedBox(height: 24),
             _sectionRow('Active Tasks', 'VIEW ALL'),
             const SizedBox(height: 10),
-            _recentTaskCard(
-              icon: Icons.local_shipping_outlined,
-              title: 'Medical Supply Delivery - Sector 4',
-              status: 'ASSIGNED',
-              statusBg: _sky,
-              statusFg: _navy,
-              priority: 'STARTS: Today, 10:00 AM',
-            ),
-            const SizedBox(height: 10),
-            _recentTaskCard(
-              icon: Icons.local_shipping_outlined,
-              title: 'Emergency Relief Kit Distribution',
-              status: 'IN PROGRESS',
-              statusBg: _completeGreen,
-              statusFg: Colors.white,
-              priority: 'DUE: Today, 5:00 PM',
-            ),
+            _buildActiveTasks(textTheme),
             const SizedBox(height: 24),
             _impactCard(textTheme),
             const SizedBox(height: 10),
@@ -458,18 +527,253 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
               ),
             ),
             const SizedBox(height: 12),
-            _uploadRow(
-              icon: Icons.image_outlined,
-              iconColor: _navy,
-              name: 'Task_Report_Medical_Delivery.jpg',
-              meta: '2.1 MB • 2h ago',
+            _buildRecentUploads(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNGOSelector() {
+    if (_joinedNGOs.length <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _joinedNGOs.map((ngo) {
+          final isSelected = ngo['ngoid'] == _selectedNGOId;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedNGOId = ngo['ngoid'];
+                  _selectedNGOData = ngo;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? _navy : Colors.white,
+                  border: Border.all(
+                    color: isSelected ? _navy : _sky,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  ngo['name'] ?? 'Unknown NGO',
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : _navy,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
-            const SizedBox(height: 10),
-            _uploadRow(
-              icon: Icons.description_outlined,
-              iconColor: _completeGreen,
-              name: 'Relief_Distribution_Notes.txt',
-              meta: '0.3 MB • 5h ago',
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTaskMetrics() {
+    if (_selectedNGOId == null) {
+      return const SizedBox.shrink();
+    }
+
+    final tasksAsync = ref.watch(ngoTasksProvider(_selectedNGOId!));
+
+    return tasksAsync.when(
+      data: (tasks) {
+        final myTasks = tasks.where((t) => 
+          (t['status'] ?? 'ASSIGNED').toString().toUpperCase() == 'ASSIGNED').length;
+        final completed = tasks.where((t) => 
+          (t['status'] ?? '').toString().toUpperCase() == 'COMPLETED').length;
+
+        return Row(
+          children: [
+            Expanded(
+              child: _metricCard(
+                label: 'MY TASKS',
+                value: myTasks.toString(),
+                footer: myTasks > 0 ? '🔔 ${myTasks} assignment${myTasks > 1 ? 's' : ''}' : '✓ All caught up',
+                footerColor: myTasks > 0 ? _alertRed : _completeGreen,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _metricCard(
+                label: 'COMPLETED',
+                value: completed.toString(),
+                footer: '✓ This month',
+                footerColor: _completeGreen,
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => Row(
+        children: [
+          Expanded(
+            child: _metricCard(
+              label: 'MY TASKS',
+              value: '-',
+              footer: 'Loading...',
+              footerColor: _labelGrey,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _metricCard(
+              label: 'COMPLETED',
+              value: '-',
+              footer: 'Loading...',
+              footerColor: _labelGrey,
+            ),
+          ),
+        ],
+      ),
+      error: (_, __) => Row(
+        children: [
+          Expanded(
+            child: _metricCard(
+              label: 'MY TASKS',
+              value: '0',
+              footer: 'Error loading',
+              footerColor: _alertRed,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _metricCard(
+              label: 'COMPLETED',
+              value: '0',
+              footer: 'Error loading',
+              footerColor: _alertRed,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveTasks(TextTheme textTheme) {
+    if (_selectedNGOId == null) {
+      return Center(
+        child: Text(
+          'Select an NGO to view tasks',
+          style: TextStyle(color: _labelGrey),
+        ),
+      );
+    }
+
+    final tasksAsync = ref.watch(ngoTasksProvider(_selectedNGOId!));
+
+    return tasksAsync.when(
+      data: (tasks) {
+        if (tasks.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _sky),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.task_alt_outlined, color: _labelGrey, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  'No Tasks Available',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Check back later for new opportunities',
+                  style: TextStyle(color: _labelGrey, fontSize: 13),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Show up to 2 most recent tasks
+        final displayTasks = tasks.take(2).toList();
+
+        return Column(
+          children: List.generate(
+            displayTasks.length,
+            (index) {
+              final task = displayTasks[index];
+              final status = (task['status'] ?? 'ASSIGNED').toString().toUpperCase();
+              Color statusBg = _sky;
+              Color statusFg = _navy;
+
+              if (status == 'IN PROGRESS') {
+                statusBg = _completeGreen;
+                statusFg = Colors.white;
+              } else if (status == 'COMPLETED') {
+                statusBg = _completeGreen.withOpacity(0.2);
+                statusFg = _completeGreen;
+              }
+
+              return Column(
+                children: [
+                  _recentTaskCard(
+                    icon: Icons.local_shipping_outlined,
+                    title: task['title'] ?? 'Untitled Task',
+                    status: status,
+                    statusBg: statusBg,
+                    statusFg: statusFg,
+                    priority: task['description'] ?? 'No details',
+                  ),
+                  if (index < displayTasks.length - 1) const SizedBox(height: 10),
+                ],
+              );
+            },
+          ),
+        );
+      },
+      loading: () => Container(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(),
+      ),
+      error: (error, _) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+        decoration: BoxDecoration(
+          color: _alertRed.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _alertRed),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.error_outline, color: _alertRed, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              'Error Loading Tasks',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: _alertRed,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              error.toString(),
+              style: TextStyle(color: _labelGrey, fontSize: 12),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -478,26 +782,7 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   }
 
   Widget _buildMapContent() {
-    return SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map, size: 80, color: _navy),
-            const SizedBox(height: 20),
-            Text(
-              'Map Screen',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Coming soon',
-              style: TextStyle(fontSize: 16, color: _labelGrey),
-            ),
-          ],
-        ),
-      ),
-    );
+    return VolunteerMapScreen(selectedNGOId: _selectedNGOId);
   }
 
   Widget _buildProfileContent() {
@@ -560,6 +845,36 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
                   ),
                 ),
                 const SizedBox(height: 30),
+                if (_selectedNGOData != null) ...[
+                  Text(
+                    'Current NGO',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: _navy,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _profileDetailCard(
+                    'Organization',
+                    _selectedNGOData!['name'] ?? 'Unknown',
+                  ),
+                  const SizedBox(height: 12),
+                  _profileDetailCard(
+                    'Type',
+                    _selectedNGOData!['ngotype'] ?? 'Unknown',
+                  ),
+                  const SizedBox(height: 30),
+                ],
+                Text(
+                  'Personal Information',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 _profileDetailCard('Email', user.email),
                 const SizedBox(height: 12),
                 _profileDetailCard('Phone', user.phone ?? 'Not provided'),
@@ -567,6 +882,8 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
                 _profileDetailCard('Member Since', user.createdAt.toString().split(' ')[0]),
                 const SizedBox(height: 12),
                 _profileDetailCard('Status', user.isActive ? 'Active' : 'Inactive'),
+                const SizedBox(height: 30),
+                _buildNGOTaskStats(),
                 const SizedBox(height: 30),
                 volunteerDetails.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
@@ -578,9 +895,9 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Volunteer Statistics',
+                          'Overall Statistics',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: _navy,
                           ),
@@ -626,6 +943,71 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
           child: Text('Error: $err'),
         ),
       ),
+    );
+  }
+
+  Widget _buildNGOTaskStats() {
+    if (_selectedNGOId == null) {
+      return const SizedBox.shrink();
+    }
+
+    final tasksAsync = ref.watch(ngoTasksProvider(_selectedNGOId!));
+
+    return tasksAsync.when(
+      data: (tasks) {
+        final assigned = tasks.where((t) => 
+          (t['status'] ?? 'ASSIGNED').toString().toUpperCase() == 'ASSIGNED').length;
+        final inProgress = tasks.where((t) => 
+          (t['status'] ?? '').toString().toUpperCase() == 'IN PROGRESS').length;
+        final completed = tasks.where((t) => 
+          (t['status'] ?? '').toString().toUpperCase() == 'COMPLETED').length;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${_selectedNGOData?['name'] ?? 'NGO'} - Task Statistics',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: _navy,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _statBox('Assigned', assigned.toString()),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _statBox('In Progress', inProgress.toString()),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _statBox('Completed', completed.toString()),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'NGO Task Statistics',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: _navy,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Center(child: CircularProgressIndicator()),
+        ],
+      ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -742,45 +1124,50 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
     );
   }
 
-  Widget _myAssignedTasksCard(TextTheme textTheme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _navy,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            right: 0,
-            child: Icon(
-              Icons.assignment_outlined,
-              color: Colors.white.withValues(alpha: 0.9),
-              size: 28,
+  Widget _myAssignedTasksCard(TextTheme textTheme,) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (context)=>VolunteerTaskScreen(selectedNGOId: _selectedNGOId,)));
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: _navy,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Icon(
+                Icons.assignment_outlined,
+                color: Colors.white.withValues(alpha: 0.9),
+                size: 28,
+              ),
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'View Assignments',
-                style: textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'View Assignments',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Accept or view your assigned tasks',
-                style: textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.9),
+                const SizedBox(height: 4),
+                Text(
+                  'Accept or view your assigned tasks',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1054,70 +1441,81 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
   }
 
   Widget _nearbyTasksMap() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
-        height: 160,
-        width: double.infinity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF1A2744),
-                    Color(0xFF243B55),
-                    Color(0xFF2D4A3E),
+    return GestureDetector(
+      onTap: () {
+        // Redirect to map screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VolunteerMapScreen(selectedNGOId: _selectedNGOId),
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          height: 160,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF1A2744),
+                      Color(0xFF243B55),
+                      Color(0xFF2D4A3E),
+                    ],
+                  ),
+                ),
+              ),
+              CustomPaint(painter: _TopoLinesPainter()),
+              Align(
+                alignment: const Alignment(0.25, -0.15),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'NEAR YOU',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: _navy,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: _completeGreen,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-            CustomPaint(painter: _TopoLinesPainter()),
-            Align(
-              alignment: const Alignment(0.25, -0.15),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                    child: const Text(
-                      'NEAR YOU',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: _navy,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: _completeGreen,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1236,6 +1634,121 @@ class VolunteerLandingState extends ConsumerState<VolunteerLanding> {
         ],
       ),
     );
+  }
+
+  Widget _buildRecentUploads() {
+    final userId = ref.read(currentUserUidProvider);
+    if (_selectedNGOId == null || userId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<dynamic>(
+      future: _getRecentUploads(userId, _selectedNGOId!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const Text('No recent reports');
+        }
+
+        final uploads = snapshot.data as List<dynamic>;
+        if (uploads.isEmpty) {
+          return const Text('No recent reports');
+        }
+
+        return Column(
+          children: List.generate(
+            uploads.length,
+            (index) {
+              final upload = uploads[index] as Map<String, dynamic>;
+              final fileName = upload['s3_key']?.toString().split('/').last ?? 'Unknown file';
+              final fileSize = upload['file_size'] ?? 'Unknown size';
+              final createdAt = upload['created_at'];
+              
+              final timeDiff = _getTimeDifference(_parseDateTime(createdAt));
+              final icon = _getFileIcon(fileName);
+              
+              return Column(
+                children: [
+                  _uploadRow(
+                    icon: icon,
+                    iconColor: index == 0 ? _navy : _completeGreen,
+                    name: fileName,
+                    meta: '$fileSize • $timeDiff',
+                  ),
+                  if (index < uploads.length - 1) const SizedBox(height: 10),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<List<dynamic>> _getRecentUploads(String userId, String ngoId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://flux-test-cg9c.onrender.com/uploads/ngo/$ngoId/user/$userId'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final uploads = (data is List) ? data : [];
+        return uploads.take(3).toList();
+      }
+      return [];
+    } catch (e) {
+      print('[VolunteerLanding] Error fetching uploads: $e');
+      return [];
+    }
+  }
+
+  DateTime? _parseDateTime(dynamic dateTime) {
+    if (dateTime == null) return null;
+    if (dateTime is String) {
+      try {
+        return DateTime.parse(dateTime);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String _getTimeDifference(DateTime? dateTime) {
+    if (dateTime == null) return 'recently';
+    
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return dateTime.toString().split(' ')[0];
+    }
+  }
+
+  IconData _getFileIcon(String fileName) {
+    if (fileName.toLowerCase().endsWith('.pdf')) {
+      return Icons.picture_as_pdf_outlined;
+    } else if (fileName.toLowerCase().endsWith('.txt')) {
+      return Icons.description_outlined;
+    } else if (fileName.toLowerCase().endsWith('.jpg') || 
+               fileName.toLowerCase().endsWith('.png') ||
+               fileName.toLowerCase().endsWith('.jpeg')) {
+      return Icons.image_outlined;
+    } else if (fileName.toLowerCase().endsWith('.xls') || 
+               fileName.toLowerCase().endsWith('.xlsx')) {
+      return Icons.table_chart_outlined;
+    }
+    return Icons.attach_file_outlined;
   }
 
   Widget _uploadRow({

@@ -101,7 +101,9 @@ class _NGOSearchJoinScreenState extends ConsumerState<NGOSearchJoinScreen> {
           await Future.delayed(const Duration(milliseconds: 500));
           if (mounted) {
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const VolunteerLanding()),
+              MaterialPageRoute(
+                builder: (context) => VolunteerLanding(selectedNGOId: ngoid),
+              ),
               (route) => false,
             );
           }
@@ -216,98 +218,112 @@ class _NGOSearchJoinScreenState extends ConsumerState<NGOSearchJoinScreen> {
   }
 
   Widget _buildNGOCard(Map<String, dynamic> ngo, {required bool isJoined}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: isJoined ? _completeGreen : _sky),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ngo['name'] ?? 'Unknown NGO',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: _navy,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        ngo['ngotype'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: _labelGrey,
-                        ),
-                      ),
-                    ],
-                  ),
+    return GestureDetector(
+      onTap: isJoined
+          ? () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      VolunteerLanding(selectedNGOId: ngo['ngoid']),
                 ),
-                if (isJoined)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _completeGreen.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
+              );
+            }
+          : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: isJoined ? _completeGreen : _sky),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ngo['name'] ?? 'Unknown NGO',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: _navy,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          ngo['ngotype'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: _labelGrey,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  if (isJoined)
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _completeGreen.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Joined',
+                        style: TextStyle(
+                          color: _completeGreen,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                ngo['description'] ?? 'No description',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: _labelGrey,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (!isJoined) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _navy,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onPressed: () => _joinNGO(ngo['ngoid']),
                     child: const Text(
-                      'Joined',
+                      'Join NGO',
                       style: TextStyle(
-                        color: _completeGreen,
-                        fontSize: 12,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              ngo['description'] ?? 'No description',
-              style: const TextStyle(
-                fontSize: 13,
-                color: _labelGrey,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (!isJoined) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _navy,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  onPressed: () => _joinNGO(ngo['ngoid']),
-                  child: const Text(
-                    'Join NGO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

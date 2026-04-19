@@ -49,7 +49,55 @@ final userProfileProvider =
       .where('ngoid', isEqualTo: ngoid)
       .get();
 
-  return snapshot.docs.map((doc) => doc.data()).toList();
+  return snapshot.docs.map((doc) {
+    final data = doc.data();
+    // Ensure the document ID is included in the task data
+    data['taskid'] = doc.id;
+    
+    // Normalize task data to handle both old and new formats
+    // Map old status value 'active' to 'ASSIGNED'
+    if (data['status'] == 'active') {
+      data['status'] = 'ASSIGNED';
+    }
+    
+    // Ensure status field exists and is uppercase
+    data['status'] = (data['status']?.toString() ?? 'ASSIGNED').toUpperCase();
+    
+    // Handle ML-generated tasks with different schema
+    // Map 'required_resources.volunteers' to 'maxvolunteers'
+    if (data['required_resources'] != null && data['maxvolunteers'] == null) {
+      final volunteers = data['required_resources']['volunteers'];
+      if (volunteers != null) {
+        data['maxvolunteers'] = volunteers;
+      }
+    }
+    
+    // Map 'objective' to 'description' if description is missing
+    if ((data['description'] == null || data['description'] == '') && data['objective'] != null) {
+      data['description'] = data['objective'];
+    }
+    
+    // Map 'timeline.deadline' to 'deadline' if deadline is missing or is a nested object
+    if (data['timeline'] != null) {
+      final timelineDeadline = data['timeline']['deadline'];
+      if (timelineDeadline != null) {
+        data['deadline'] = timelineDeadline;
+      }
+    }
+    
+    // If deadline is still an object/map, convert to string representation
+    if (data['deadline'] is Map) {
+      final deadlineMap = data['deadline'] as Map;
+      data['deadline'] = deadlineMap['deadline'] ?? deadlineMap.toString();
+    }
+    
+    // Ensure ngoid is set (critical for filtering)
+    if (data['ngoid'] == null) {
+      data['ngoid'] = ngoid;
+    }
+    
+    return data;
+  }).toList();
 });
 
 final adminCreatedTasksProvider = StreamProvider.family<List<Map<String, dynamic>>, ({String ngoid, String adminUid})>((ref, params) {
@@ -58,7 +106,55 @@ final adminCreatedTasksProvider = StreamProvider.family<List<Map<String, dynamic
       .where('ngoid', isEqualTo: params.ngoid)
       .where('createdBy', isEqualTo: params.adminUid)
       .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+      .map((snapshot) => snapshot.docs.map((doc) {
+        final data = doc.data();
+        // Ensure the document ID is included in the task data
+        data['taskid'] = doc.id;
+        
+        // Normalize task data to handle both old and new formats
+        // Map old status value 'active' to 'ASSIGNED'
+        if (data['status'] == 'active') {
+          data['status'] = 'ASSIGNED';
+        }
+        
+        // Ensure status field exists and is uppercase
+        data['status'] = (data['status']?.toString() ?? 'ASSIGNED').toUpperCase();
+        
+        // Handle ML-generated tasks with different schema
+        // Map 'required_resources.volunteers' to 'maxvolunteers'
+        if (data['required_resources'] != null && data['maxvolunteers'] == null) {
+          final volunteers = data['required_resources']['volunteers'];
+          if (volunteers != null) {
+            data['maxvolunteers'] = volunteers;
+          }
+        }
+        
+        // Map 'objective' to 'description' if description is missing
+        if ((data['description'] == null || data['description'] == '') && data['objective'] != null) {
+          data['description'] = data['objective'];
+        }
+        
+        // Map 'timeline.deadline' to 'deadline' if deadline is missing or is a nested object
+        if (data['timeline'] != null) {
+          final timelineDeadline = data['timeline']['deadline'];
+          if (timelineDeadline != null) {
+            data['deadline'] = timelineDeadline;
+          }
+        }
+        
+        // If deadline is still an object/map, convert to string representation
+        if (data['deadline'] is Map) {
+          final deadlineMap = data['deadline'] as Map;
+          data['deadline'] = deadlineMap['deadline'] ?? deadlineMap.toString();
+        }
+        
+        // Ensure ngoid is set (critical for filtering)
+        if (data['ngoid'] == null) {
+          data['ngoid'] = params.ngoid;
+        }
+        
+        return data;
+      }).toList());
 });
 
 final ngoDocumentsProvider = FutureProvider.family<List<Map<String, dynamic>>?, String>((ref, ngoid) async {

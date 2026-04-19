@@ -1,10 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flux_app/screens/admin/admin_create_task.dart';
 import 'package:flux_app/screens/admin/admin_documents_screen.dart';
 import 'package:flux_app/screens/admin/ml_task_generation_screen.dart';
 import 'package:flux_app/screens/admin/news_results_screen.dart';
+import 'package:flux_app/screens/admin/admin_map_screen.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../services/taskgenerationservice.dart';
 
 import '../../../providers/auth_provider.dart';
@@ -286,19 +290,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _volunteerRow(
-                    initials: 'SM',
-                    tint: const Color(0xFF7C4DFF),
-                    name: 'Sarah Miller',
-                    tags: const ['MEDICAL', 'TRUCKING'],
-                  ),
-                  const SizedBox(height: 10),
-                  _volunteerRow(
-                    initials: 'MT',
-                    tint: const Color(0xFF00897B),
-                    name: 'Marcus Thompson',
-                    tags: const ['LOGISTICS', 'SUPPLY'],
-                  ),
+                  _buildVolunteersList(ngoId: ngoId),
                   const SizedBox(height: 24),
                   Text(
                     'Recent Uploads',
@@ -308,19 +300,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _uploadRow(
-                    icon: Icons.picture_as_pdf,
-                    iconColor: _alertRed,
-                    name: 'Aurora_impact_study.pdf',
-                    meta: '2.4 MB • 2h ago',
-                  ),
-                  const SizedBox(height: 10),
-                  _uploadRow(
-                    icon: Icons.image_outlined,
-                    iconColor: _navy,
-                    name: 'Field_Report_04.jpg',
-                    meta: '1.2 MB • 3h ago',
-                  ),
+                  _buildAdminRecentUploads(ngoId: ngoId),
                 ],
               ),
             );
@@ -332,27 +312,124 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
       );
   }
 
-    Widget _buildMapContent() {
-    return SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map, size: 80, color: _navy),
-            const SizedBox(height: 20),
-            Text(
-              'Map Screen',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Coming soon',
-              style: TextStyle(fontSize: 16, color: _labelGrey),
-            ),
-          ],
-        ),
-      ),
+    Widget _buildAdminRecentUploads({required String ngoId}) {
+    if (ngoId.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<dynamic>(
+      future: _getAdminNGOUploads(ngoId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const Text('No recent uploads');
+        }
+
+        final uploads = snapshot.data as List<dynamic>;
+        if (uploads.isEmpty) {
+          return const Text('No recent uploads');
+        }
+
+        return Column(
+          children: List.generate(
+            uploads.length,
+            (index) {
+              final upload = uploads[index] as Map<String, dynamic>;
+              final fileName = upload['s3_key']?.toString().split('/').last ?? 'Unknown file';
+              final fileSize = upload['file_size'] ?? 'Unknown size';
+              final createdAt = upload['created_at'];
+              
+              final timeDiff = _getAdminTimeDifference(_parseAdminDateTime(createdAt));
+              final icon = _getAdminFileIcon(fileName);
+              
+              return Column(
+                children: [
+                  _uploadRow(
+                    icon: icon,
+                    iconColor: index == 0 ? _alertRed : _navy,
+                    name: fileName,
+                    meta: '$fileSize • $timeDiff',
+                  ),
+                  if (index < uploads.length - 1) const SizedBox(height: 10),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
+  }
+
+  Future<List<dynamic>> _getAdminNGOUploads(String ngoId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://flux-test-cg9c.onrender.com/uploads/ngo/$ngoId'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final uploads = (data is List) ? data : [];
+        // Sort by created_at descending and take last 3
+        uploads.sort((a, b) => (b['created_at'] ?? '').toString().compareTo((a['created_at'] ?? '').toString()));
+        return uploads.take(3).toList();
+      }
+      return [];
+    } catch (e) {
+      print('[AdminLanding] Error fetching NGO uploads: $e');
+      return [];
+    }
+  }
+
+  DateTime? _parseAdminDateTime(dynamic dateTime) {
+    if (dateTime == null) return null;
+    if (dateTime is String) {
+      try {
+        return DateTime.parse(dateTime);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String _getAdminTimeDifference(DateTime? dateTime) {
+    if (dateTime == null) return 'recently';
+    
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return dateTime.toString().split(' ')[0];
+    }
+  }
+
+  IconData _getAdminFileIcon(String fileName) {
+    if (fileName.toLowerCase().endsWith('.pdf')) {
+      return Icons.picture_as_pdf;
+    } else if (fileName.toLowerCase().endsWith('.txt')) {
+      return Icons.description_outlined;
+    } else if (fileName.toLowerCase().endsWith('.jpg') || 
+               fileName.toLowerCase().endsWith('.png') ||
+               fileName.toLowerCase().endsWith('.jpeg')) {
+      return Icons.image_outlined;
+    } else if (fileName.toLowerCase().endsWith('.xls') || 
+               fileName.toLowerCase().endsWith('.xlsx')) {
+      return Icons.table_chart_outlined;
+    }
+    return Icons.attach_file_outlined;
+  }
+
+  Widget _buildMapContent() {
+    return const AdminMapScreen();
   }
 
   Widget _buildHeader(TextTheme textTheme, Map<String, dynamic>? data) {
@@ -764,12 +841,21 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
   }
 
   Widget _urgencyMap() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
-        height: 160,
-        width: double.infinity,
-        child: Stack(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AdminMapScreen(),
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          height: 160,
+          width: double.infinity,
+          child: Stack(
           fit: StackFit.expand,
           children: [
             Container(
@@ -829,6 +915,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1012,6 +1099,63 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     );
   }
 
+
+  Widget _buildVolunteersList({required String ngoId}) {
+    final uid = ref.read(currentUserUidProvider);
+    if (uid == null || ngoId.isEmpty) {
+      return const Text('Unable to load volunteers');
+    }
+
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'volunteer')
+          .where('ngoid', arrayContains: ngoId)
+          .limit(5)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Text('No volunteers linked to this NGO');
+        }
+
+        final volunteers = snapshot.data!.docs;
+        final colors = [
+          const Color(0xFF7C4DFF),
+          const Color(0xFF00897B),
+          const Color(0xFFFF6F00),
+          const Color(0xFF1976D2),
+          const Color(0xFFC62828),
+        ];
+
+        return Column(
+          children: List.generate(
+            volunteers.length,
+            (index) {
+              final volData = volunteers[index].data() as Map<String, dynamic>;
+              final name = volData['name'] ?? 'Unknown';
+              final initials = name.split(' ').map((n) => n[0]).join().toUpperCase();
+              
+              return Column(
+                children: [
+                  _volunteerRow(
+                    initials: initials,
+                    tint: colors[index % colors.length],
+                    name: name,
+                    tags: const [],
+                  ),
+                  if (index < volunteers.length - 1) const SizedBox(height: 10),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
 
   Widget _volunteerRow({
     required String initials,

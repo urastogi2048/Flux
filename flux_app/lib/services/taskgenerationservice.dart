@@ -9,17 +9,38 @@ class TaskGenerationService {
     required String ngoId,
   }) async {
     try {
+      final url = '$baseUrl/uploads/ngo/$ngoId/generate-task';
+      print('[TaskGenerationService] 🔍 Requesting ML task generation...');
+      print('[TaskGenerationService] URL: $url');
+      print('[TaskGenerationService] NGO ID: $ngoId');
+      
       final res = await http.post(
-        Uri.parse('$baseUrl/uploads/ngo/$ngoId/generate-task'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
+      ).timeout(
+        const Duration(seconds: 30),
       );
 
+      print('[TaskGenerationService] Response status: ${res.statusCode}');
+      print('[TaskGenerationService] Response body: ${res.body}');
+
       if (res.statusCode == 200) {
-        return jsonDecode(res.body);
+        final data = jsonDecode(res.body);
+        print('[TaskGenerationService] ✅ Task generated successfully');
+        return data;
+      } else if (res.statusCode == 502 || res.statusCode == 503) {
+        // Server error - likely quota exceeded or service down
+        print('[TaskGenerationService] ⚠️ Server error - quota or service issue');
+        if (res.body.contains('RESOURCE_EXHAUSTED') || res.body.contains('quota')) {
+          print('[TaskGenerationService] 📊 Quota exceeded for AI generation');
+        }
+        return null;
+      } else {
+        print('[TaskGenerationService] ❌ Failed with status ${res.statusCode}');
+        return null;
       }
-      return null;
     } catch (e) {
-      print('Error: $e');
+      print('[TaskGenerationService] ❌ Exception: $e');
       return null;
     }
   }

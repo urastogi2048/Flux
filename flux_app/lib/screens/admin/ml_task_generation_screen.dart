@@ -31,8 +31,12 @@ class _MLTaskGenerationScreenState extends ConsumerState<MLTaskGenerationScreen>
   }
 
   Future<Map<String, dynamic>?> _generateTask() async {
+    print('[MLGenerationScreen] 🚀 Starting task generation...');
+    print('[MLGenerationScreen] NGO ID: ${widget.ngoId}');
     final service = TaskGenerationService();
-    return await service.generateTaskFromML(ngoId: widget.ngoId);
+    final result = await service.generateTaskFromML(ngoId: widget.ngoId);
+    print('[MLGenerationScreen] Result: $result');
+    return result;
   }
 
   @override
@@ -118,14 +122,27 @@ class _MLTaskGenerationScreenState extends ConsumerState<MLTaskGenerationScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.info_outline, color: _navy, size: 48),
+                  Icon(Icons.cloud_off_outlined, color: Color(0xFFFF9800), size: 48),
                   const SizedBox(height: 16),
                   const Text(
-                    'No task generated',
+                    'AI Service Limit Reached',
                     style: TextStyle(
                       fontSize: 16,
                       color: _navy,
                       fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'The AI service has reached its daily limit. Please try again later or contact support.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF6B7280),
+                        height: 1.5,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -140,6 +157,16 @@ class _MLTaskGenerationScreenState extends ConsumerState<MLTaskGenerationScreen>
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('Try Again'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: _navy,
+                    ),
+                    child: const Text('Go Back'),
                   ),
                 ],
               ),
