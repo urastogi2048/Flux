@@ -244,6 +244,7 @@ class AuthService {
 
   Future<String?> createTask({
   required String ngoid,
+  required String adminUid,
   required String title,
   required String description,
   required List<GeoPoint> locations,
@@ -259,12 +260,14 @@ class AuthService {
     await taskRef.set({
       'taskid': taskId,
       'ngoid': ngoid,
+      'createdBy': adminUid,
       'title': title,
       'description': description,
       'locations': locations,
       'deadline': deadline,
       'maxvolunteers': maxvolunteers,
       'requiredvolunteeruid': [],
+      'status': 'active',
       'createdAt': FieldValue.serverTimestamp(),
     });
 

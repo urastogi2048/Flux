@@ -28,7 +28,15 @@ def generate_upload_url(user_id: str, ngo_id: str, file_type: str):
         },
         ExpiresIn=5000,
     )
-    file_url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{key}"
+    #file_url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{key}"
+    file_url = s3.generate_presigned_url(
+        ClientMethod="get_object",
+        Params={
+            "Bucket": S3_BUCKET,
+            "Key": key,
+        },
+        ExpiresIn=604800,  # 7 days
+    )
     return upload_url, file_url, key
 
 

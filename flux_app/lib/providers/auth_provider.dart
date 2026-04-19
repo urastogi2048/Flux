@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flux_app/models/usermodel.dart';
 import 'package:flux_app/models/volunteermodel.dart';
 import '../services/authservice.dart';
+import '../services/datauploadservice.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
@@ -49,4 +50,45 @@ final userProfileProvider =
       .get();
 
   return snapshot.docs.map((doc) => doc.data()).toList();
+});
+
+final adminCreatedTasksProvider = StreamProvider.family<List<Map<String, dynamic>>, ({String ngoid, String adminUid})>((ref, params) {
+  return FirebaseFirestore.instance
+      .collection('tasks')
+      .where('ngoid', isEqualTo: params.ngoid)
+      .where('createdBy', isEqualTo: params.adminUid)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+});
+
+final ngoDocumentsProvider = FutureProvider.family<List<Map<String, dynamic>>?, String>((ref, ngoid) async {
+  final authService = ref.read(authServiceProvider);
+  final uploadService = ref.read(dataUploadServiceProvider);
+  return uploadService.getNGODocs(ngoId: ngoid);
+});
+
+final activeTasksCountProvider = StreamProvider.family<int, String>((ref, ngoid) {
+  return FirebaseFirestore.instance
+      .collection('tasks')
+      .where('ngoid', isEqualTo: ngoid)
+      .where('status', isEqualTo: 'active')
+      .snapshots()
+      .map((snapshot) => snapshot.docs.length);
+});
+
+final pendingDocumentsProvider = FutureProvider.family<int, String>((ref, ngoid) async {
+  final uploadService = ref.read(dataUploadServiceProvider);
+  final allDocs = await uploadService.getNGODocs(ngoId: ngoid);
+  
+  if (allDocs == null) return 0;
+  
+  // Count documents with status "PENDING"
+  return allDocs.where((doc) {
+    final status = doc['status']?.toString().toUpperCase() ?? '';
+    return status == 'PENDING';
+  }).length;
+});
+
+final dataUploadServiceProvider = Provider((ref) {
+  return DataUploadService();
 });
