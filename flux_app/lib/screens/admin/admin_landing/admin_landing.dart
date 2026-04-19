@@ -473,15 +473,6 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
           ),
         ),
         IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.notifications_outlined),
-          color: _navy,
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.white,
-            shape: const CircleBorder(),
-          ),
-        ),
-        IconButton(
           onPressed: () {
             _signOut();
           },

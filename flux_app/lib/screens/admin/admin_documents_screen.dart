@@ -443,7 +443,7 @@ class _AdminDocumentsScreenState extends ConsumerState<AdminDocumentsScreen> {
 
   Future<void> _viewDocument(String url) async {
     try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.inAppWebView);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -455,7 +455,7 @@ class _AdminDocumentsScreenState extends ConsumerState<AdminDocumentsScreen> {
 
   Future<void> _downloadDocument(String url, String fileName) async {
     try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.inAppWebView);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
