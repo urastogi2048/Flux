@@ -1,5 +1,5 @@
 from google import genai
-from config import GEMINI_API_KEY
+from backend.config import GEMINI_API_KEY
 from utils import JSONUtils
 import time
 

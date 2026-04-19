@@ -1,3 +1,4 @@
+from app.schemas.news import StateNewsRequest
 from app.schemas.upload import MetadataRequest, UploadRequest
 
-__all__ = ["UploadRequest", "MetadataRequest"]
+__all__ = ["UploadRequest", "MetadataRequest", "StateNewsRequest"]

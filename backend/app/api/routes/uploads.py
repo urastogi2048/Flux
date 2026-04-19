@@ -1,13 +1,118 @@
+import json
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
+from google import genai
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import FileUpload
-from app.schemas import MetadataRequest, UploadRequest
-from app.services import file_exists, generate_upload_url
+from app.schemas import MetadataRequest, StateNewsRequest, UploadRequest
+from app.services import file_exists, generate_upload_url, get_news_alerts_by_state
 
 router = APIRouter()
 ALLOWED_TYPES = ["image/jpeg", "image/png", "image/jpg", "application/pdf"]
+INDIAN_STATES_AND_UTS = {
+    "andhra pradesh",
+    "arunachal pradesh",
+    "assam",
+    "bihar",
+    "chhattisgarh",
+    "goa",
+    "gujarat",
+    "haryana",
+    "himachal pradesh",
+    "jharkhand",
+    "karnataka",
+    "kerala",
+    "madhya pradesh",
+    "maharashtra",
+    "manipur",
+    "meghalaya",
+    "mizoram",
+    "nagaland",
+    "odisha",
+    "punjab",
+    "rajasthan",
+    "sikkim",
+    "tamil nadu",
+    "telangana",
+    "tripura",
+    "uttar pradesh",
+    "uttarakhand",
+    "west bengal",
+    "andaman and nicobar islands",
+    "chandigarh",
+    "dadra and nagar haveli and daman and diu",
+    "delhi",
+    "jammu and kashmir",
+    "ladakh",
+    "lakshadweep",
+    "puducherry",
+}
+
+
+class NGOTaskGenerator:
+        def __init__(self, model_name: str = "models/gemini-2.5-flash"):
+                api_key = os.getenv("GEMINI_API_KEY")
+                if not api_key:
+                        raise ValueError("GEMINI_API_KEY is not configured")
+                self.client = genai.Client(api_key=api_key)
+                self.model_name = model_name
+
+        def generate_task(self, description: str) -> dict:
+                prompt = f"""
+You are an intelligent NGO task planner.
+
+Generate a practical NGO task.
+
+STRICT RULES:
+- Output ONLY valid JSON
+- No explanation
+- No markdown
+- No extra text
+- Use double quotes
+- All fields must be present
+
+Input:
+{{
+    "description": "{description}"
+}}
+
+Output format:
+{{
+    "task_id": "",
+    "title": "",
+    "category": "",
+    "location": "",
+    "objective": "",
+    "required_resources": {{
+        "volunteers": 0,
+        "skills": [],
+        "materials": []
+    }},
+    "timeline": {{
+        "deadline": "",
+        "estimated_duration_hours": 0
+    }},
+    "priority": "",
+    "notes": ""
+}}
+"""
+
+                response = self.client.models.generate_content(
+                        model=self.model_name,
+                        contents=prompt,
+                        config={"response_mime_type": "application/json"},
+                )
+
+                try:
+                        return json.loads(response.text)
+                except (json.JSONDecodeError, TypeError):
+                        raise HTTPException(
+                                status_code=502,
+                                detail="LLM returned invalid JSON response",
+                        )
 
 
 def get_db():
@@ -101,3 +206,55 @@ def get_latest_upload_status(ngo_id: str, user_id: str, db: Session = Depends(ge
         "file_url": upload.file_url,
         "created_at": upload.created_at,
     }
+
+
+@router.post("/uploads/ngo/{ngo_id}/generate-task")
+def generate_ngo_task_from_ml_output(ngo_id: str, db: Session = Depends(get_db)):
+    rows = (
+        db.query(FileUpload.ml_result)
+        .filter(FileUpload.ngo_id == ngo_id, FileUpload.ml_result.isnot(None))
+        .all()
+    )
+
+    combined_ml_output = "\n".join(
+        item[0].strip() for item in rows if item[0] and item[0].strip()
+    )
+
+    if not combined_ml_output:
+        raise HTTPException(
+            status_code=404,
+            detail="No ML output found for the provided ngo_id",
+        )
+
+    try:
+        generator = NGOTaskGenerator()
+        task_json = generator.generate_task(combined_ml_output)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Task generation failed: {exc}")
+
+    return task_json
+
+
+@router.post("/news/by-state")
+def get_news_by_state(req: StateNewsRequest):
+    state = req.state.strip()
+    if state.lower() not in INDIAN_STATES_AND_UTS:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Indian state or union territory",
+        )
+
+    try:
+        result = get_news_alerts_by_state(state)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"News pipeline failed: {exc}")
+
+    return {
+        "message": "News alerts fetched successfully",
+        "data": result,
+    }
+
