@@ -2,6 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flux_app/screens/admin/admin_create_task.dart';
+import 'package:flux_app/screens/admin/admin_documents_screen.dart';
+import 'package:flux_app/screens/admin/ml_task_generation_screen.dart';
+import 'package:flux_app/screens/admin/news_results_screen.dart';
+import '../../../services/taskgenerationservice.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../authscreens/auth_wrapper.dart';
@@ -96,10 +100,33 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
   Widget _buildHomeContent(TextTheme textTheme , String name){
     final user = FirebaseAuth.instance.currentUser;
     final userDataAsync = ref.watch(userProfileProvider(user!.uid));
+    final userDetailsAsync = ref.watch(userDetailsProvider(user.uid));
 
     return SafeArea(
         child: userDataAsync.when(
           data: (data) {
+            final ngoId = userDetailsAsync.maybeWhen(
+              data: (userModel) => userModel?.ngoid.isNotEmpty == true ? userModel!.ngoid.first : '',
+              orElse: () => '',
+            );
+
+            // Watch the count providers
+            final activeTasksAsync = ref.watch(activeTasksCountProvider(ngoId));
+            final pendingDocsAsync = ref.watch(pendingDocumentsProvider(ngoId));
+            final tasksAsync = (ngoId.isNotEmpty && user != null)
+                ? ref.watch(adminCreatedTasksProvider((ngoid: ngoId, adminUid: user.uid)))
+                : AsyncValue.data([]);
+
+            final activeTasksCount = activeTasksAsync.maybeWhen(
+              data: (count) => count.toString(),
+              orElse: () => '0',
+            );
+
+            final pendingDocsCount = pendingDocsAsync.maybeWhen(
+              data: (count) => count.toString().padLeft(2, '0'),
+              orElse: () => '00',
+            );
+
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               child: Column(
@@ -126,8 +153,8 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                       Expanded(
                         child: _metricCard(
                           label: 'ACTIVE TASKS',
-                          value: '24',
-                          footer: '📈 +4 from yesterday',
+                          value: activeTasksCount,
+                          footer: '📈 Real-time count',
                           footerColor: _completeGreen,
                         ),
                       ),
@@ -135,8 +162,8 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                       Expanded(
                         child: _metricCard(
                           label: 'PENDING REPORTS',
-                          value: '07',
-                          footer: '❗ Reports for review',
+                          value: pendingDocsCount,
+                          footer: '❗ Awaiting Smart Match',
                           footerColor: _alertRed,
                         ),
                       ),
@@ -145,26 +172,72 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                   const SizedBox(height: 16),
                   _viewReportsCard(textTheme),
                   const SizedBox(height: 12),
-                  _unassignedTasksCard(textTheme),
+                  _unassignedTasksCard(textTheme, ngoId),
+                  const SizedBox(height: 20),
+                  _buildActionButtons(textTheme),
                   const SizedBox(height: 24),
                   _sectionRow('Recent Tasks', 'VIEW ALL'),
                   const SizedBox(height: 10),
-                  _recentTaskCard(
-                    icon: Icons.lock_outline,
-                    title: 'Medical Supply Delivery - Sector 4',
-                    status: 'COMPLETE',
-                    statusBg: _completeGreen,
-                    statusFg: Colors.white,
-                    priority: 'PRIORITY: HIGH',
-                  ),
-                  const SizedBox(height: 10),
-                  _recentTaskCard(
-                    icon: Icons.local_shipping_outlined,
-                    title: 'Logistics Hub Calibration',
-                    status: 'IN PROGRESS',
-                    statusBg: _sky,
-                    statusFg: _navy,
-                    priority: 'PRIORITY: MEDIUM',
+                  tasksAsync.when(
+                    data: (tasks) {
+                      if (tasks.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: Center(
+                            child: Text(
+                              'No tasks yet',
+                              style: TextStyle(color: _labelGrey, fontSize: 14),
+                            ),
+                          ),
+                        );
+                      }
+                      return Column(
+                        children: [
+                          ...tasks.take(2).map((task) {
+                            final status = task['status']?.toString().toUpperCase() ?? 'PENDING';
+                            final priority = task['priority']?.toString().toUpperCase() ?? 'MEDIUM';
+                            
+                            Color statusBg = _sky;
+                            Color statusFg = _navy;
+                            
+                            if (status == 'COMPLETE') {
+                              statusBg = _completeGreen;
+                              statusFg = Colors.white;
+                            } else if (status == 'IN PROGRESS') {
+                              statusBg = _sky;
+                              statusFg = _navy;
+                            }
+                            
+                            return Column(
+                              children: [
+                                _recentTaskCard(
+                                  icon: Icons.task_alt_outlined,
+                                  title: task['title']?.toString() ?? 'Untitled Task',
+                                  status: status,
+                                  statusBg: statusBg,
+                                  statusFg: statusFg,
+                                  priority: 'PRIORITY: $priority',
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                            );
+                          }).toList(),
+                        ],
+                      );
+                    },
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: CircularProgressIndicator(),
+                    ),
+                    error: (error, stack) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: Text(
+                          'Error loading tasks',
+                          style: TextStyle(color: _alertRed, fontSize: 14),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   _objectiveCard(textTheme),
@@ -394,49 +467,59 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
   }
 
   Widget _viewReportsCard(TextTheme textTheme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _navy,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            right: 0,
-            child: Icon(
-              Icons.grid_view_rounded,
-              color: Colors.white.withValues(alpha: 0.9),
-              size: 28,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AdminDocumentsScreen(),
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: _navy,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Icon(
+                Icons.grid_view_rounded,
+                color: Colors.white.withValues(alpha: 0.9),
+                size: 28,
+              ),
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'View Reports',
-                style: textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'View Reports',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Consolidated field data',
-                style: textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.9),
+                const SizedBox(height: 4),
+                Text(
+                  'Consolidated field data & documents',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _unassignedTasksCard(TextTheme textTheme) {
+  Widget _unassignedTasksCard(TextTheme textTheme, String ngoId) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -466,7 +549,16 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: () {},
+              onPressed: ngoId.isNotEmpty
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MLTaskGenerationScreen(ngoId: ngoId),
+                        ),
+                      );
+                    }
+                  : null,
               style: FilledButton.styleFrom(
                 backgroundColor: _navy,
                 foregroundColor: Colors.white,
@@ -1059,6 +1151,152 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             icon: const Icon(Icons.download_outlined, color: _navy),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(TextTheme textTheme) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AdminCreateTask()),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.auto_awesome, color: _navy, size: 28),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Create Task',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: _navy,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  _showNewsDialog();
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.newspaper, color: _completeGreen, size: 28),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Fetch News',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: _completeGreen,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showNewsDialog() {
+    final states = [
+      "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar",
+      "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh",
+      "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra",
+    ];
+
+    String? selectedState;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Select State for News'),
+          content: DropdownButton<String>(
+            value: selectedState,
+            hint: const Text('Choose a state'),
+            isExpanded: true,
+            items: states
+                .map((state) => DropdownMenuItem(value: state, child: Text(state)))
+                .toList(),
+            onChanged: (value) => setState(() => selectedState = value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: selectedState == null
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NewsResultsScreen(state: selectedState!),
+                        ),
+                      );
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: _navy),
+              child: const Text('Fetch', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -4,7 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flux_app/providers/auth_provider.dart';
 
 class AdminCreateTask extends ConsumerStatefulWidget {
-  const AdminCreateTask({super.key});
+  final String? mlTitle;
+  final String? mlDescription;
+  final String? mlDeadline;
+
+  const AdminCreateTask({
+    super.key,
+    this.mlTitle,
+    this.mlDescription,
+    this.mlDeadline,
+  });
 
   @override
   ConsumerState<AdminCreateTask> createState() => _AdminCreateTaskState();
@@ -18,12 +27,21 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
   static const Color _completeGreen = Color(0xFF1B8A4A);
   static const Color _alertRed = Color(0xFFE53935);
 
-  final _titleCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  final _deadlineCtrl = TextEditingController();
-  final _maxCtrl = TextEditingController();
+  late TextEditingController _titleCtrl;
+  late TextEditingController _descCtrl;
+  late TextEditingController _deadlineCtrl;
+  late TextEditingController _maxCtrl;
 
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleCtrl = TextEditingController(text: widget.mlTitle ?? '');
+    _descCtrl = TextEditingController(text: widget.mlDescription ?? '');
+    _deadlineCtrl = TextEditingController(text: widget.mlDeadline ?? '');
+    _maxCtrl = TextEditingController();
+  }
 
   Future<void> _createTask() async {
     setState(() => _loading = true);
@@ -55,6 +73,7 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
 
       await authService.createTask(
         ngoid: ngoid,
+        adminUid: uid,
         title: _titleCtrl.text,
         description: _descCtrl.text,
         locations: [GeoPoint(0, 0)],
@@ -100,6 +119,7 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
     required String hint,
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,13 +135,14 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
+          readOnly: readOnly,
           maxLines: maxLines,
           keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: _labelGrey),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: readOnly ? const Color(0xFFF0F0F0) : Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -129,11 +150,18 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _sky, width: 1.5),
+              borderSide: BorderSide(
+                color: readOnly ? const Color(0xFFE5E7EB) : _sky,
+                width: 1.5,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: _navy, width: 2),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
             ),
           ),
           style: const TextStyle(
@@ -181,16 +209,48 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Fill in the task information to create a new volunteer task.',
+                widget.mlTitle != null
+                    ? 'AI-generated task details. Just enter the number of volunteers needed.'
+                    : 'Fill in the task information to create a new volunteer task.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: _labelGrey,
                     ),
               ),
+              if (widget.mlTitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 12),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _completeGreen),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.auto_awesome, color: _completeGreen, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Task details pre-filled from AI analysis',
+                            style: TextStyle(
+                              color: _completeGreen,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               const SizedBox(height: 24),
               _buildTextField(
                 controller: _titleCtrl,
                 label: 'Task Title',
                 hint: 'Enter task title',
+                readOnly: widget.mlTitle != null,
               ),
               const SizedBox(height: 16),
               _buildTextField(
@@ -198,12 +258,14 @@ class _AdminCreateTaskState extends ConsumerState<AdminCreateTask> {
                 label: 'Description',
                 hint: 'Enter detailed task description',
                 maxLines: 4,
+                readOnly: widget.mlDescription != null,
               ),
               const SizedBox(height: 16),
               _buildTextField(
                 controller: _deadlineCtrl,
                 label: 'Deadline',
                 hint: 'e.g., 2024-12-31 or Today, 5:00 PM',
+                readOnly: widget.mlDeadline != null,
               ),
               const SizedBox(height: 16),
               _buildTextField(
