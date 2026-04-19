@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flux_app/providers/auth_provider.dart';
+import 'package:flux_app/screens/volunteer/volunteerlanding.dart';
+import 'task_detail_screen.dart';
 
 class VolunteerTaskScreen extends ConsumerStatefulWidget {
-  const VolunteerTaskScreen({super.key});
+  final String? selectedNGOId;
+
+  const VolunteerTaskScreen({super.key, this.selectedNGOId});
 
   @override
   ConsumerState<VolunteerTaskScreen> createState() => _VolunteerTaskScreenState();
@@ -19,7 +23,7 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
   static const Color _alertRed = Color(0xFFE53935);
 
   String _filterStatus = 'ALL';
-  final List<String> _statusFilters = ['ALL', 'ASSIGNED', 'IN PROGRESS', 'COMPLETED'];
+  final List<String> _statusFilters = ['ALL', 'ASSIGNED', 'IN PROGRESS', 'COMPLETED', 'REJECTED'];
   bool _isRefreshing = false;
 
   @override
@@ -47,11 +51,18 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
     
     setState(() => _isRefreshing = true);
 
-    final uid = ref.read(currentUserUidProvider);
-    final userAsync = await ref.read(userDetailsProvider(uid ?? "").future);
+    // Use selectedNGOId from widget, otherwise get first NGO from user
+    String? ngoid = widget.selectedNGOId;
+    
+    if (ngoid == null) {
+      final uid = ref.read(currentUserUidProvider);
+      final userAsync = await ref.read(userDetailsProvider(uid ?? "").future);
+      if (userAsync != null && userAsync.ngoid.isNotEmpty) {
+        ngoid = userAsync.ngoid.first;
+      }
+    }
 
-    if (userAsync != null && userAsync.ngoid.isNotEmpty) {
-      final ngoid = userAsync.ngoid.first;
+    if (ngoid != null) {
       // Invalidate the provider to force a refresh
       ref.refresh(ngoTasksProvider(ngoid));
     }
@@ -81,10 +92,6 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
           ),
         ),
         centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
         actions: [
           IconButton(
             icon: _isRefreshing
@@ -112,7 +119,8 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
             );
           }
 
-          final ngoid = user.ngoid.first;
+          // Use selectedNGOId from widget, otherwise use first NGO
+          final ngoid = widget.selectedNGOId ?? user.ngoid.first;
           final tasksAsync = ref.watch(ngoTasksProvider(ngoid));
 
           return tasksAsync.when(
@@ -195,33 +203,40 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
         tasks.where((t) => (t['status'] ?? '').toString().toUpperCase() == 'IN PROGRESS').length;
     final completed =
         tasks.where((t) => (t['status'] ?? '').toString().toUpperCase() == 'COMPLETED').length;
+    final rejected =
+        tasks.where((t) => (t['status'] ?? '').toString().toUpperCase() == 'REJECTED').length;
 
-    return Row(
-      children: [
-        Expanded(
-          child: _statMetric(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _statMetric(
             label: 'ASSIGNED',
             value: assigned.toString(),
             color: _sky,
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _statMetric(
+          const SizedBox(width: 12),
+          _statMetric(
             label: 'IN PROGRESS',
             value: inProgress.toString(),
             color: Color(0xFFFFF3CD),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _statMetric(
+          const SizedBox(width: 12),
+          _statMetric(
             label: 'COMPLETED',
             value: completed.toString(),
             color: Color(0xFFD4EDDA),
           ),
-        ),
-      ],
+          if (rejected > 0) ...[
+            const SizedBox(width: 12),
+            _statMetric(
+              label: 'REJECTED',
+              value: rejected.toString(),
+              color: _alertRed.withOpacity(0.15),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -230,33 +245,37 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
     required String value,
     required Color color,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: _navy,
+    return SizedBox(
+      width: 100,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: _navy,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: _labelGrey,
-              letterSpacing: 0.5,
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: _labelGrey,
+                letterSpacing: 0.5,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -318,6 +337,10 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
       case 'IN PROGRESS':
         statusBg = Color(0xFFFFF3CD);
         statusFg = Color(0xFF856404);
+        break;
+      case 'REJECTED':
+        statusBg = _alertRed.withOpacity(0.15);
+        statusFg = _alertRed;
         break;
       default:
         statusBg = _sky;
@@ -430,12 +453,19 @@ class _VolunteerTaskScreenState extends ConsumerState<VolunteerTaskScreen>
             width: double.infinity,
             child: FilledButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Task action feature coming soon'),
-                    duration: Duration(seconds: 2),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TaskDetailScreen(
+                      task: task,
+                      selectedNGOId: widget.selectedNGOId ?? '',
+                    ),
                   ),
-                );
+                ).then((refreshNeeded) {
+                  if (refreshNeeded == true) {
+                    _refreshTasks();
+                  }
+                });
               },
               style: FilledButton.styleFrom(
                 backgroundColor: _navy,
