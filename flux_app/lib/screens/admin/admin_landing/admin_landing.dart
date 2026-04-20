@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +14,7 @@ import '../../../services/taskgenerationservice.dart';
 import '../../../providers/auth_provider.dart';
 import '../../authscreens/auth_wrapper.dart';
 
-/// Admin home / landing — layout matches product mock (navy + sky blue).
+/// Admin home / landing â€” layout matches product mock (navy + sky blue).
 class AdminLandingScreen extends ConsumerStatefulWidget {
   const AdminLandingScreen({super.key});
 
@@ -75,9 +75,9 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             label: 'MAP',
           ),
           NavigationDestination(
-            icon: Icon(Icons.hub_outlined),
-            selectedIcon: Icon(Icons.hub, color: _navy),
-            label: 'ALLOCATION',
+            icon: Icon(Icons.people_outlined),
+            selectedIcon: Icon(Icons.people, color: _navy),
+            label: 'VOLUNTEERS',
           ),
         ],
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -95,10 +95,47 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
       case 2:
         return _buildMapContent();
       case 3:
-        return _allocationAuditCard(textTheme);
+        return _buildAllocationContent();
       default:
         return _buildHomeContent(textTheme, name);
     }
+  }
+
+  Widget _buildAllocationContent() {
+    final user = FirebaseAuth.instance.currentUser;
+    final userDetailsAsync = ref.watch(userDetailsProvider(user?.uid ?? ''));
+
+    return userDetailsAsync.when(
+      data: (userModel) {
+        final ngoId = userModel?.ngoid.isNotEmpty == true ? userModel!.ngoid.first : '';
+        
+        if (ngoId.isEmpty) {
+          return const Center(child: Text('No NGO assigned'));
+        }
+
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Registered Volunteers',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildVolunteersList(ngoId: ngoId),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(child: Text('Error: $error')),
+    );
   }
 
   Widget _buildHomeContent(TextTheme textTheme , String name){
@@ -158,7 +195,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                         child: _metricCard(
                           label: 'ACTIVE TASKS',
                           value: activeTasksCount,
-                          footer: '📈 Real-time count',
+                          footer: 'Real-time count',
                           footerColor: _completeGreen,
                         ),
                       ),
@@ -167,7 +204,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                         child: _metricCard(
                           label: 'PENDING REPORTS',
                           value: pendingDocsCount,
-                          footer: '❗ Awaiting Smart Match',
+                          footer: 'Smart Match',
                           footerColor: _alertRed,
                         ),
                       ),
@@ -280,7 +317,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                   const SizedBox(height: 10),
                   _urgencyMap(),
                   const SizedBox(height: 24),
-                  _allocationAuditCard(textTheme),
+                  _volunteerStatsCard(textTheme, ngoId),
                   const SizedBox(height: 24),
                   Text(
                     'Volunteers',
@@ -351,7 +388,7 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
                     icon: icon,
                     iconColor: index == 0 ? _alertRed : _navy,
                     name: fileName,
-                    meta: '$fileSize • $timeDiff',
+                    meta: '$fileSize â€¢ $timeDiff',
                   ),
                   if (index < uploads.length - 1) const SizedBox(height: 10),
                 ],
@@ -470,15 +507,6 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
               fontSize: 20,
               color: Colors.black,
             ),
-          ),
-        ),
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.notifications_outlined),
-          color: _navy,
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.white,
-            shape: const CircleBorder(),
           ),
         ),
         IconButton(
@@ -920,55 +948,93 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     );
   }
 
-  Widget _allocationAuditCard(TextTheme textTheme) {
+
+  Widget _volunteerStatsCard(TextTheme textTheme, String ngoId) {
+    final statsAsync = ref.watch(volunteerTaskStatsProvider(ngoId));
+
     return SafeArea(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+      child: statsAsync.when(
+        data: (stats) {
+          final accepted = stats['accepted'] ?? 0;
+          final completed = stats['completed'] ?? 0;
+          final rejected = stats['rejected'] ?? 0;
+
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Volunteer Activity',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                  ),
+                ),
+                const Divider(height: 24),
+                _statRow('Tasks Accepted', accepted.toString(), Colors.blue),
+                const SizedBox(height: 12),
+                _statRow('Tasks Completed', completed.toString(), _completeGreen),
+                const SizedBox(height: 12),
+                _statRow('Tasks Rejected', rejected.toString(), _alertRed),
+              ],
+            ),
+          );
+        },
+        loading: () => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Center(child: CircularProgressIndicator(color: _navy)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Allocation Audit',
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: _navy,
-              ),
-            ),
-            const Divider(height: 24),
-            _auditRow('Efficiency rate', '94.2%', highlight: false),
-            const SizedBox(height: 12),
-            _auditRow('Avg. proximity', '1.2km', highlight: false),
-            const SizedBox(height: 12),
-            _auditRow('Conflicts', '0', highlight: true),
-          ],
+        error: (error, stack) => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Center(
+            child: Text('Error loading stats', style: TextStyle(color: _alertRed)),
+          ),
         ),
       ),
     );
   }
 
-  Widget _auditRow(String label, String value, {required bool highlight}) {
+  Widget _statRow(String label, String value, Color color) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(color: _labelGrey, fontSize: 14)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: highlight ? _alertRed : _navy,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -1111,7 +1177,6 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
           .collection('users')
           .where('role', isEqualTo: 'volunteer')
           .where('ngoid', arrayContains: ngoId)
-          .limit(5)
           .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1137,18 +1202,53 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
             (index) {
               final volData = volunteers[index].data() as Map<String, dynamic>;
               final name = volData['name'] ?? 'Unknown';
+              final email = volData['email'] ?? 'N/A';
+              final phone = volData['phone'] ?? 'N/A';
               final initials = name.split(' ').map((n) => n[0]).join().toUpperCase();
+              final isActive = volData['isActive'] ?? false;
               
-              return Column(
-                children: [
-                  _volunteerRow(
-                    initials: initials,
-                    tint: colors[index % colors.length],
-                    name: name,
-                    tags: const [],
-                  ),
-                  if (index < volunteers.length - 1) const SizedBox(height: 10),
-                ],
+              return FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('volunteers')
+                    .doc(volunteers[index].id)
+                    .get(),
+                builder: (context, volSnapshot) {
+                  int tasksCompleted = 0;
+                  int tasksAccepted = 0;
+                  int tasksRejected = 0;
+                  double rating = 0.0;
+                  List<String> skills = [];
+
+                  if (volSnapshot.hasData && volSnapshot.data != null) {
+                    final volDetails = volSnapshot.data!.data() as Map<String, dynamic>?;
+                    if (volDetails != null) {
+                      tasksCompleted = volDetails['tasksCompleted'] ?? 0;
+                      tasksAccepted = volDetails['tasksAccepted'] ?? 0;
+                      tasksRejected = volDetails['tasksRejected'] ?? 0;
+                      rating = (volDetails['rating'] ?? 0.0).toDouble();
+                      skills = List<String>.from(volDetails['skills'] ?? []);
+                    }
+                  }
+                  
+                  return Column(
+                    children: [
+                      _volunteerDetailCard(
+                        initials: initials,
+                        tint: colors[index % colors.length],
+                        name: name,
+                        email: email,
+                        phone: phone,
+                        skills: skills,
+                        tasksCompleted: tasksCompleted,
+                        tasksAccepted: tasksAccepted,
+                        tasksRejected: tasksRejected,
+                        rating: rating,
+                        isActive: isActive,
+                      ),
+                      if (index < volunteers.length - 1) const SizedBox(height: 16),
+                    ],
+                  );
+                },
               );
             },
           ),
@@ -1157,83 +1257,271 @@ class _AdminLandingScreenState extends ConsumerState<AdminLandingScreen> {
     );
   }
 
-  Widget _volunteerRow({
+  Widget _volunteerDetailCard({
     required String initials,
     required Color tint,
     required String name,
-    required List<String> tags,
+    required String email,
+    required String phone,
+    required List<String> skills,
+    required int tasksCompleted,
+    required int tasksAccepted,
+    required int tasksRejected,
+    required double rating,
+    required bool isActive,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
           ),
         ],
+        border: Border.all(
+          color: tint.withValues(alpha: 0.1),
+          width: 1.5,
+        ),
       ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: tint.withValues(alpha: 0.25),
-            child: Text(
-              initials,
-              style: TextStyle(
-                color: tint,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with Avatar and Name
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827),
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: tint.withValues(alpha: 0.2),
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      color: tint,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: tags
-                      .map(
-                        (t) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _sky,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            t,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: _navy,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: Color(0xFF111827),
+                              ),
                             ),
                           ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isActive ? _completeGreen.withValues(alpha: 0.15) : _alertRed.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              isActive ? 'Active' : 'Inactive',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isActive ? _completeGreen : _alertRed,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        rating > 0 ? '⭐ $rating' : 'No rating yet',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                          fontWeight: FontWeight.w500,
                         ),
-                      )
-                      .toList(),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFE5E7EB)),
+            const SizedBox(height: 14),
+            
+            // Contact Info
+            Row(
+              children: [
+                Icon(Icons.email_outlined, size: 16, color: tint),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    email,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF374151),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.phone_outlined, size: 16, color: tint),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    phone,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            
+            // Skills Section
+            if (skills.isNotEmpty) ...[
+              const Text(
+                'Skills',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: skills
+                    .map(
+                      (skill) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: tint.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: tint.withValues(alpha: 0.3), width: 1),
+                        ),
+                        child: Text(
+                          skill,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: tint,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 14),
+            ],
+            
+            // Tasks Statistics
+            Row(
+              children: [
+                Expanded(
+                  child: _statBox(
+                    label: 'Accepted',
+                    value: tasksAccepted.toString(),
+                    color: Color(0xFF2563EB),
+                    icon: Icons.thumb_up_outlined,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _statBox(
+                    label: 'Completed',
+                    value: tasksCompleted.toString(),
+                    color: _completeGreen,
+                    icon: Icons.check_circle_outlined,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _statBox(
+                    label: 'Rejected',
+                    value: tasksRejected.toString(),
+                    color: _alertRed,
+                    icon: Icons.cancel_outlined,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Action Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: tint,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.assignment_outlined, size: 18),
+                label: const Text('Assign Task', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statBox({
+    required String label,
+    required String value,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_vert, color: _labelGrey),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: color.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
@@ -1468,3 +1756,4 @@ class _TopoLinesPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
