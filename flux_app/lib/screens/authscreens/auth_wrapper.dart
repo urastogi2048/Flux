@@ -4,9 +4,7 @@ import 'package:flux_app/screens/admin/admin_landing/admin_landing.dart';
 import 'package:flux_app/screens/volunteer/volunteerlanding.dart';
 import 'package:flux_app/screens/volunteer/ngo_search_join_screen.dart';
 import '../../providers/auth_provider.dart';
-import '../dashboards/admin_dashboard.dart';
-import '../dashboards/volunteer_dashboard.dart';
-import 'login_screen.dart';
+import 'loginoptions.dart';
 import 'signupass.dart';
 
 class AuthWrapper extends ConsumerWidget {
@@ -19,7 +17,7 @@ class AuthWrapper extends ConsumerWidget {
     return authState.when(
       data: (user) {
         if (user == null) {
-          return const LoginScreen();
+          return const LoginOptionsScreen();
         }
         final userRoleAsync = ref.watch(userRoleProvider(user.uid));
 
@@ -28,49 +26,125 @@ class AuthWrapper extends ConsumerWidget {
             if (isAdmin == true) {
               return const AdminLandingScreen();
             } else if (isAdmin == false) {
-              // For volunteers, check if they have joined an NGO
               final userDetailsAsync = ref.watch(userDetailsProvider(user.uid));
 
               return userDetailsAsync.when(
                 data: (userModel) {
                   if (userModel == null) {
-                    return const Scaffold(
-                      body: Center(child: Text('User not found')),
+                    return Scaffold(
+                      body: SafeArea(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 48, color: Color(0xFFE53935)),
+                              const SizedBox(height: 16),
+                              const Text('User profile not found'),
+                              const SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: () => ref.read(authServiceProvider).signOut(),
+                                child: const Text('Return to Login'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     );
                   }
 
-                  // If volunteer hasn't joined any NGO, show NGO search screen
                   if (userModel.ngoid.isEmpty) {
                     return NGOSearchJoinScreen(volunteerUid: user.uid);
                   }
 
-                  // Otherwise, show volunteer landing
                   return const VolunteerLanding();
                 },
                 loading: () => const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                  body: Center(
+                    child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(Color(0xFF002B9A))),
+                  ),
                 ),
                 error: (err, stack) => Scaffold(
-                  body: Center(child: Text('Error loading user details: $err')),
+                  body: SafeArea(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: Color(0xFFE53935)),
+                          const SizedBox(height: 16),
+                          const Text('Error loading profile'),
+                          const SizedBox(height: 8),
+                          Text('$err', textAlign: TextAlign.center),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: () => ref.read(authServiceProvider).signOut(),
+                            child: const Text('Return to Login'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               );
             } else {
-              return SignUpAs();
+              return const SignUpAs();
             }
           },
           loading: () => const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(Color(0xFF002B9A))),
+            ),
           ),
           error: (err, stack) => Scaffold(
-            body: Center(child: Text('Error loading role: $err')),
+            body: SafeArea(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Color(0xFFE53935)),
+                    const SizedBox(height: 16),
+                    const Text('Error loading role'),
+                    const SizedBox(height: 8),
+                    Text('$err', textAlign: TextAlign.center),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => ref.read(authServiceProvider).signOut(),
+                      child: const Text('Return to Login'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         );
       },
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(Color(0xFF002B9A))),
+        ),
       ),
       error: (err, stack) => Scaffold(
-        body: Center(child: Text('Auth stream error: $err')),
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Color(0xFFE53935)),
+                const SizedBox(height: 16),
+                const Text('Authentication error'),
+                const SizedBox(height: 8),
+                Text('$err', textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    // Invalidate auth state to retry
+                    ref.invalidate(authStateProvider);
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

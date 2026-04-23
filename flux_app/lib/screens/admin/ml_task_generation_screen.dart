@@ -125,7 +125,7 @@ class _MLTaskGenerationScreenState extends ConsumerState<MLTaskGenerationScreen>
                   Icon(Icons.cloud_off_outlined, color: Color(0xFFFF9800), size: 48),
                   const SizedBox(height: 16),
                   const Text(
-                    'AI Service Limit Reached',
+                    'No Task Generated',
                     style: TextStyle(
                       fontSize: 16,
                       color: _navy,
@@ -136,7 +136,7 @@ class _MLTaskGenerationScreenState extends ConsumerState<MLTaskGenerationScreen>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
-                      'The AI service has reached its daily limit. Please try again later or contact support.',
+                      'Unable to generate a task at this moment. Please try again.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 14,
