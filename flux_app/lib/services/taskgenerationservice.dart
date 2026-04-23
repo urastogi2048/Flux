@@ -24,24 +24,42 @@ class TaskGenerationService {
       print('[TaskGenerationService] Response status: ${res.statusCode}');
       print('[TaskGenerationService] Response body: ${res.body}');
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        print('[TaskGenerationService] ✅ Task generated successfully');
-        return data;
-      } else if (res.statusCode == 502 || res.statusCode == 503) {
-        // Server error - likely quota exceeded or service down
-        print('[TaskGenerationService] ⚠️ Server error - quota or service issue');
-        if (res.body.contains('RESOURCE_EXHAUSTED') || res.body.contains('quota')) {
-          print('[TaskGenerationService] 📊 Quota exceeded for AI generation');
+      // Accept any 2xx success status code
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        if (res.body.isEmpty) {
+          print('[TaskGenerationService] ⚠️ Empty response body');
+          throw Exception('Empty response from server');
         }
-        return null;
+        try {
+          final data = jsonDecode(res.body);
+          print('[TaskGenerationService] ✅ Task generated successfully');
+          print('[TaskGenerationService] Data: $data');
+          return data;
+        } catch (e) {
+          print('[TaskGenerationService] ❌ JSON decode error: $e');
+          throw Exception('Invalid response format: $e');
+        }
+      } else if (res.statusCode == 502 || res.statusCode == 503) {
+        // Server error - extract error message from response
+        print('[TaskGenerationService] ⚠️ Server error (${res.statusCode})');
+        try {
+          final errorData = jsonDecode(res.body);
+          final detail = errorData['detail'] ?? 'Server error. Please try again later.';
+          print('[TaskGenerationService] Error detail: $detail');
+          throw Exception(detail);
+        } catch (e) {
+          if (e is Exception && !e.toString().contains('type')) {
+            rethrow;
+          }
+          throw Exception('AI service temporarily unavailable. Please try again later.');
+        }
       } else {
         print('[TaskGenerationService] ❌ Failed with status ${res.statusCode}');
-        return null;
+        throw Exception('Failed to generate task (${res.statusCode})');
       }
     } catch (e) {
       print('[TaskGenerationService] ❌ Exception: $e');
-      return null;
+      rethrow;
     }
   }
 
