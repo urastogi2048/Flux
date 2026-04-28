@@ -1,13 +1,55 @@
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
+
+# Python virtual environments
 myenv/
 venv/
 env/
 ven/
-__pycache__/
-.vscode/
-*.pyc
+backenv/
+worker_env/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.Python
+*.egg
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Backend specific
 backend/.env
 backend/backenv/
+backend/*.log
+
+# Flutter specific
 flux_app/pubspec.lock
-backend/worker_env
+flux_app/pubspec.lock.yaml
+flux_app/build/
+flux_app/.flutter-plugins
+flux_app/.flutter-plugins-dependencies
+
+# Android signing keys
+**/*.jks
+**/*.keystore
+key.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+*.zip
+*.tar.gz
