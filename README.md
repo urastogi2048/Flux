@@ -38,7 +38,7 @@
 
 ## 🧭 Problem Statement
 
-NGOs across India collect vast amounts of field data — surveys, reports, and assessments - yet most of it is never processed or acted upon. The result is misallocated resources, unmet urgent needs, and volunteers operating without clear direction.
+NGOs across India collect vast amounts of field data - surveys, reports, and assessments - yet most of it is never processed or acted upon. The result is misallocated resources, unmet urgent needs, and volunteers operating without clear direction.
 
 **FLUX is built to solve exactly this.**
 
