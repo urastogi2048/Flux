@@ -3,6 +3,8 @@
 *.log
 *.pyc
 *.swp
+*.swo
+*~
 .DS_Store
 .atom/
 .build/
@@ -11,27 +13,31 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+Thumbs.db
 
 # IntelliJ related
 *.iml
 *.ipr
 *.iws
 .idea/
+*.jks
+*.keystore
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code
+.vscode/
+*.code-workspace
 
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
+pubspec.lock
 
 # Symbolication related
 app.*.symbols
@@ -43,3 +49,25 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/app/intermediates/
+/android/.gradle/
+/android/local.properties
+
+# Android signing keys
+**/*.jks
+**/*.keystore
+key.properties
+
+# Generated files
+.dart_tool/
+GeneratedPluginRegistrant.java
+.cxx/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Temporary files
+*.tmp
+*.bak
